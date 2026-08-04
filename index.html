@@ -358,7 +358,7 @@
 
   <footer class="note">
     Affixes e sistema de Wine conferidos pós-lançamento (ago/2026) em <b>mistfallhunters.wiki</b> e <b>mistfallhunter.cc</b>. Threshold é "geralmente nível 5 ou 6" — ajuste <code>GAME.thresholdLevel</code> se o jogo confirmar 6.<br/>
-    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Necklace/Ring somam bases de Physical Damage + Physical Resistance. Só a Weapon segue sem amostra (<code>market: null</code>). <code>GAME.maxGemLevel</code> e a magnitude da Wine seguem a confirmar no jogo.
+    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Necklace/Ring somam bases de Physical Damage + Physical Resistance; Weapon = Sword & Shield. <code>GAME.maxGemLevel</code> e a magnitude da Wine seguem a confirmar no jogo.
   </footer>
 </div>
 
@@ -393,9 +393,10 @@ const GAME = {
   // Necklace/Ring = pool de 2 bases por slot (Physical Damage + Physical Resistance/HP):
   //    Amulet = Dominance (163,172,193) + Benediction (170,192,209).
   //    Ring   = Retribution (180,198,219) + Woodling Guardian (176,179,196).
-  //    lo/hi/mid calculados sobre o conjunto. Weapon (Sword and Shield) pendente.
+  //    lo/hi/mid calculados sobre o conjunto.
+  // Weapon = Studded Sword and Shield (146,206,208,218,221,223,225,242,250).
   slots: [
-    { id: "weapon", name: "Arma",              sockets: 2, market: null },
+    { id: "weapon", name: "Arma · Sword & Shield", sockets: 2, market: { vog: 4, lo: 146, hi: 250, mid: 221 } },
     { id: "helm",   name: "Elmo · Head",       sockets: 2, market: { vog: 2, lo: 170, hi: 204, mid: 184 } },
     { id: "chest",  name: "Peitoral · Clothes", sockets: 3, market: { vog: 3, lo: 176, hi: 219, mid: 199 } },
     { id: "gloves", name: "Luvas · Gauntlets",  sockets: 2, market: { vog: 1, lo: 155, hi: 203, mid: 162 } },
