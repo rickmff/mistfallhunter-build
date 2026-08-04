@@ -358,7 +358,7 @@
 
   <footer class="note">
     Affixes e sistema de Wine conferidos pós-lançamento (ago/2026) em <b>mistfallhunters.wiki</b> e <b>mistfallhunter.cc</b>. Threshold é "geralmente nível 5 ou 6" — ajuste <code>GAME.thresholdLevel</code> se o jogo confirmar 6.<br/>
-    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Weapon/Necklace/Ring sem amostra (<code>market: null</code>) — o solver os evita. <code>GAME.maxGemLevel</code> e a magnitude da Wine seguem a confirmar no jogo.
+    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Necklace/Ring somam bases de Physical Damage + Physical Resistance. Só a Weapon segue sem amostra (<code>market: null</code>). <code>GAME.maxGemLevel</code> e a magnitude da Wine seguem a confirmar no jogo.
   </footer>
 </div>
 
@@ -385,20 +385,24 @@ const GAME = {
     { id: "witheredknight",name: "Withered Knight",role: "Tank sombrio · dreno de vida" },
   ],
 
-  // 8 slots — nomes confirmados pelo menu Armor da Auction House.
-  // `sockets` = nº de gem sockets (a confirmar por raridade/patch).
-  // `market` = leitura de preço da Auction House (open beta, tier azul/raro):
+  // 8 slots — nomes confirmados pelo menu da Auction House.
+  // `sockets` = nº de gem sockets (lido dos listings; a confirmar por raridade/patch).
+  // `market` = leitura de preço da Auction House (tier azul/raro):
   //    vog = valueOfGold (banda 1–5, ver GAME.valueBands) · lo/hi/mid em gold.
-  //    null = slot sem amostra ainda (Weapon, Necklace, Ring não capturados).
+  //    null = slot ainda sem amostra de preço.
+  // Necklace/Ring = pool de 2 bases por slot (Physical Damage + Physical Resistance/HP):
+  //    Amulet = Dominance (163,172,193) + Benediction (170,192,209).
+  //    Ring   = Retribution (180,198,219) + Woodling Guardian (176,179,196).
+  //    lo/hi/mid calculados sobre o conjunto. Weapon (Sword and Shield) pendente.
   slots: [
-    { id: "weapon", name: "Arma",              sockets: 3, market: null },
+    { id: "weapon", name: "Arma",              sockets: 2, market: null },
     { id: "helm",   name: "Elmo · Head",       sockets: 2, market: { vog: 2, lo: 170, hi: 204, mid: 184 } },
     { id: "chest",  name: "Peitoral · Clothes", sockets: 3, market: { vog: 3, lo: 176, hi: 219, mid: 199 } },
     { id: "gloves", name: "Luvas · Gauntlets",  sockets: 2, market: { vog: 1, lo: 155, hi: 203, mid: 162 } },
     { id: "pants",  name: "Calças · Pants",     sockets: 2, market: { vog: 3, lo: 178, hi: 194, mid: 186 } },
     { id: "boots",  name: "Botas · Boots",      sockets: 2, market: { vog: 1, lo: 146, hi: 255, mid: 160 } },
-    { id: "amulet", name: "Amuleto · Necklace", sockets: 1, market: null },
-    { id: "ring",   name: "Anel · Ring",        sockets: 1, market: null },
+    { id: "amulet", name: "Amuleto · Necklace", sockets: 2, market: { vog: 2, lo: 163, hi: 209, mid: 182 } },
+    { id: "ring",   name: "Anel · Ring",        sockets: 2, market: { vog: 3, lo: 176, hi: 219, mid: 188 } },
   ],
 
   // Bandas de valueOfGold — derivadas do range observado na Auction House (146–255g).
