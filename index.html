@@ -264,13 +264,24 @@
   .shop { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
   @media (max-width: 560px) { .shop { grid-template-columns: 1fr; } }
   .shopc { background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 11px 12px; }
-  .shead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .shead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
   .stitle { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  .pnum { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+          background: var(--gold-deep); color: #1a130a; font-family: var(--font-mono); font-size: 10px; font-weight: 700; }
   .sprice { font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: var(--gold-bright); text-align: right; white-space: nowrap; }
   .sprice small { display: block; font-size: 9.5px; font-weight: 500; color: var(--ink-faint); }
-  .saff { font-size: 11.5px; color: var(--ink-dim); margin: 6px 0 8px; }
   .vpill { font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: #1a130a; padding: 2px 7px; border-radius: 999px; }
   .vpill.unk { background: var(--line); color: var(--ink-faint); }
+
+  .gemlist { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .gemrow { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; font-size: 12.5px; }
+  .gemrow .snum { font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--ink-faint);
+                  background: #17121e; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  .gemrow .gdot { width: 9px; height: 9px; border-radius: 50%; }
+  .gemrow .gname { font-weight: 600; color: var(--ink); }
+  .gemrow .glvl { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+  .gemrow.empty .gname { color: var(--ink-faint); font-weight: 400; font-style: italic; }
+  .gemrow.empty { grid-template-columns: auto 1fr; }
 
   .vlegend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
   .vchip { font-size: 11px; color: var(--ink-dim); background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 999px; padding: 4px 9px; }
@@ -317,10 +328,10 @@
 
       <div class="card">
         <h2>Victory Wine</h2>
-        <p class="sub">Consumível de run: 2 affixes temporários pra fechar a conta e bater thresholds sem gastar socket. Só lista affixes já escolhidos.</p>
+        <p class="sub">Sistema pós-launch: <b>2 affixes por run</b>, travados ao confirmar até extrair/morrer. Fecham a conta e batem thresholds sem gastar socket. Só lista affixes já escolhidos. <em>Magnitude do bônus por tier ainda não confirmada no jogo.</em></p>
         <div class="wine-row">
           <div>
-            <label>Tier</label>
+            <label>Bônus (ranks)</label>
             <select id="wine-tier"></select>
           </div>
           <div>
@@ -346,8 +357,8 @@
   </div>
 
   <footer class="note">
-    Preços e <code>valueOfGold</code> vêm de um snapshot da Auction House (open beta, tier raro) — atualize <code>GAME.slots[].market</code> a cada patch.<br/>
-    Weapon, Necklace e Ring ainda sem amostra de preço (<code>market: null</code>) — o solver os evita e sinaliza quando precisa deles. Ajuste também <code>GAME.maxGemLevel</code> conforme o jogo confirmar.
+    Affixes e sistema de Wine conferidos pós-lançamento (ago/2026) em <b>mistfallhunters.wiki</b> e <b>mistfallhunter.cc</b>. Threshold é "geralmente nível 5 ou 6" — ajuste <code>GAME.thresholdLevel</code> se o jogo confirmar 6.<br/>
+    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Weapon/Necklace/Ring sem amostra (<code>market: null</code>) — o solver os evita. <code>GAME.maxGemLevel</code> e a magnitude da Wine seguem a confirmar no jogo.
   </footer>
 </div>
 
@@ -400,36 +411,35 @@ const GAME = {
     { vog: 5, max: Infinity, label: "Premium",     color: "#d8586b" },
   ],
 
-  // cat: offense | defense | utility
+  // Affixes — nomes do CONSENSO DE LANÇAMENTO (ago/2026), verificados na wiki
+  // pós-launch (mistfallhunters.wiki + mistfallhunter.cc). cat: offense|defense|utility.
+  // Confirmar no jogo (camp/socket UI), não em screenshots de beta.
   affixes: [
-    { id: "fortitude",  name: "Fortitude",       cat: "defense", desc: "Vida máxima e resistência a atordoamento." },
-    { id: "ironhide",   name: "Ironhide",        cat: "defense", desc: "Armadura física; reduz dano de golpe." },
-    { id: "block",      name: "Bulwark",         cat: "defense", desc: "Chance e valor de bloqueio com off-hand." },
-    { id: "warding",    name: "Warding",         cat: "defense", desc: "Resistência elemental a todas as escolas." },
-    { id: "regen",      name: "Lifewell",        cat: "defense", desc: "Regeneração de vida fora de combate." },
+    { id: "fervid",    name: "Fervid",    cat: "offense", desc: "Dano bônus enquanto saudável; em rank alto corta custo de energia das skills." },
+    { id: "valor",     name: "Valor",     cat: "offense", desc: "Aumenta ataque; em rank alto adiciona penetração de defesa." },
+    { id: "wrath",     name: "Wrath",     cat: "offense", desc: "Amplifica dano com vida baixa (abaixo de ~50%)." },
+    { id: "smiting",   name: "Smiting",   cat: "offense", desc: "Aumenta o dano de acerto crítico." },
 
-    { id: "ferocity",   name: "Ferocity",        cat: "offense", desc: "Dano de ataque corpo-a-corpo." },
-    { id: "marksman",   name: "Marksmanship",    cat: "offense", desc: "Dano e alcance de ataques à distância." },
-    { id: "pyromancy",  name: "Pyromancy",       cat: "offense", desc: "Dano de fogo e chance de queimadura." },
-    { id: "crit",       name: "Killer's Edge",   cat: "offense", desc: "Chance e multiplicador de crítico." },
-    { id: "rend",       name: "Rend",            cat: "offense", desc: "Sangramento acumulável em acertos." },
-    { id: "lifesteal",  name: "Sanguine",        cat: "offense", desc: "Converte dano causado em vida." },
+    { id: "aegis",     name: "Aegis",     cat: "defense", desc: "Aumenta defesa; em rank alto melhora resistência física." },
+    { id: "bulwark",   name: "Bulwark",   cat: "defense", desc: "Bônus de bloqueio (linha de classe — Mercenary)." },
+    { id: "stoic",     name: "Stoic",     cat: "defense", desc: "Resistência com vida baixa + breakpoint de recuperação." },
+    { id: "tenacious", name: "Tenacious", cat: "defense", desc: "Buff defensivo de sobrevivência." },
 
-    { id: "haste",      name: "Swiftness",       cat: "utility", desc: "Velocidade de movimento e de ataque." },
-    { id: "stealth",    name: "Umbral Step",     cat: "utility", desc: "Reduz alcance de detecção; abre furtividade." },
-    { id: "scavenger",  name: "Scavenger",       cat: "utility", desc: "Mais loot e chance de raridade na extração." },
-    { id: "cooldown",   name: "Attunement",      cat: "utility", desc: "Reduz recarga de habilidades." },
-    { id: "vision",     name: "Farsight",        cat: "utility", desc: "Revela inimigos e baús próximos no minimapa." },
-    { id: "carry",      name: "Beast of Burden", cat: "utility", desc: "Aumenta capacidade de carga na run." },
+    { id: "seeker",    name: "Seeker",    cat: "utility", desc: "Acerto concede janela de velocidade de movimento; empilha em rank alto." },
+    { id: "vitality",  name: "Vitality",  cat: "utility", desc: "Aumenta o pool de energia." },
   ],
 
-  // Victory Wine — 4 tiers, cada um concede +N nível em 2 affixes escolhidos.
+  // Victory Wine — sistema PÓS-LANÇAMENTO (ago/2026): concede exatamente 2 affixes
+  // por run, travados ao confirmar até extrair/morrer. ⚠️ Os nomes de tier e os
+  // valores numéricos NÃO são confirmados publicamente — a wiki alerta contra
+  // "nomes falsos". Aqui o bônus é modelado como "+N ranks" (0–4) só para o solver;
+  // confirme a magnitude real no jogo.
   wineTiers: [
-    { id: "none",  name: "— sem Wine —",         bonus: 0 },
-    { id: "mortal",name: "Mortal Tonic (+1)",    bonus: 1 },
-    { id: "hero",  name: "Hero Ale (+2)",        bonus: 2 },
-    { id: "war",   name: "War Blood (+3)",       bonus: 3 },
-    { id: "god",   name: "God's Brew (+4)",      bonus: 4 },
+    { id: "none", name: "— sem Wine —",   bonus: 0 },
+    { id: "r1",   name: "Wine · +1 rank", bonus: 1 },
+    { id: "r2",   name: "Wine · +2 ranks", bonus: 2 },
+    { id: "r3",   name: "Wine · +3 ranks", bonus: 3 },
+    { id: "r4",   name: "Wine · +4 ranks", bonus: 4 },
   ],
 };
 
@@ -695,25 +705,36 @@ function renderResult() {
       </div>
     </div>`;
 
-  // ----- lista de compras: peças escolhidas, mais baratas primeiro -----
-  const shop = S.usedPieces.length ? `<div class="shop">` + S.usedPieces.map(pc => {
-    const cap = pc.sockets;
-    const filled = pc.gems.map(g =>
-      `<div class="socket filled" style="background:${catColor(g.cat)}" title="${affix(g.affix).name} +${g.level}">${g.level}</div>`).join("");
-    const empties = Array.from({ length: pc.free }, () => `<div class="socket">·</div>`).join("");
-    const affs = pc.gems.map(g => `${affix(g.affix).name} +${g.level}`).join(" · ") || "—";
+  // ----- lista de compras: peça a peça, gem por socket -----
+  const shop = S.usedPieces.length ? `<div class="shop">` + S.usedPieces.map((pc, pi) => {
     const priceMain = pc.mid != null ? `~${pc.mid} g` : `s/ preço`;
     const priceSub  = pc.mid != null ? `${pc.lo}–${pc.hi} g` : `sem amostra`;
     const pill = pc.vog != null
       ? `<span class="vpill" style="background:${bandColor(pc.vog)}">vog ${pc.vog}</span>`
       : `<span class="vpill unk">vog ?</span>`;
+    // uma linha por socket da peça: gem alocada ou vazio
+    const gemRows = Array.from({ length: pc.sockets }, (_, i) => {
+      const g = pc.gems[i];
+      if (g) {
+        const a = affix(g.affix);
+        return `<div class="gemrow">
+          <span class="snum">S${i + 1}</span>
+          <span class="gdot" style="background:${catColor(g.cat)}"></span>
+          <span class="gname">${a.name}</span>
+          <span class="glvl">gem +${g.level}</span>
+        </div>`;
+      }
+      return `<div class="gemrow empty">
+        <span class="snum">S${i + 1}</span>
+        <span class="gname">— socket livre —</span>
+      </div>`;
+    }).join("");
     return `<div class="shopc">
       <div class="shead">
-        <div class="stitle">${pc.name} ${pill}</div>
+        <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name} ${pill}</div>
         <div class="sprice">${priceMain}<small>${priceSub}</small></div>
       </div>
-      <div class="saff">${affs}</div>
-      <div class="sockets">${filled}${empties}</div>
+      <div class="gemlist">${gemRows}</div>
     </div>`;
   }).join("") + `</div>` : "";
 
