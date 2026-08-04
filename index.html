@@ -251,6 +251,31 @@
     opacity: 0; pointer-events: none; transition: .22s; z-index: 50;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Custo / lista de compras ---------- */
+  .stat.gold-stat { border-color: rgba(217,180,91,.4); background: rgba(217,180,91,.07); }
+  .stat.gold-stat .v { color: var(--gold-bright); }
+  .stat .v small { display: block; font-size: 10px; font-weight: 500; color: var(--ink-faint); }
+
+  .section-h {
+    font-family: var(--font-display); font-size: 12.5px; font-weight: 600; letter-spacing: .5px;
+    text-transform: uppercase; color: var(--ink-dim); margin: 16px 0 9px;
+  }
+  .shop { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  @media (max-width: 560px) { .shop { grid-template-columns: 1fr; } }
+  .shopc { background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 11px 12px; }
+  .shead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .stitle { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  .sprice { font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: var(--gold-bright); text-align: right; white-space: nowrap; }
+  .sprice small { display: block; font-size: 9.5px; font-weight: 500; color: var(--ink-faint); }
+  .saff { font-size: 11.5px; color: var(--ink-dim); margin: 6px 0 8px; }
+  .vpill { font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: #1a130a; padding: 2px 7px; border-radius: 999px; }
+  .vpill.unk { background: var(--line); color: var(--ink-faint); }
+
+  .vlegend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .vchip { font-size: 11px; color: var(--ink-dim); background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 999px; padding: 4px 9px; }
+  .vchip small { color: var(--ink-faint); font-family: var(--font-mono); }
+  .vchip .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -260,7 +285,7 @@
       <div class="sigil">G</div>
       <div>
         <h1>Gyldsmith</h1>
-        <div class="tagline"><b>Mistfall Hunter</b> · Build Planner — declare os affixes, o solver aloca as gems</div>
+        <div class="tagline"><b>Mistfall Hunter</b> · Diga os affixes que quer — o app acha as peças <b>mais baratas</b> pra montar</div>
       </div>
     </div>
     <div class="top-actions">
@@ -313,16 +338,16 @@
     <!-- ===================== COLUNA DIREITA: resultado ===================== -->
     <div>
       <div class="card">
-        <h2>Resolução da build</h2>
-        <p class="sub">O solver distribui gems nos sockets por prioridade. Cada socket entrega até <span id="mgl-label"></span> nível(is).</p>
+        <h2>Plano de compra (menor custo)</h2>
+        <p class="sub">O solver escolhe o conjunto de peças <b>mais barato</b> cujos sockets cobrem os affixes. Preços da Auction House; cada socket entrega até <span id="mgl-label"></span> nível(is).</p>
         <div id="result"></div>
       </div>
     </div>
   </div>
 
   <footer class="note">
-    Dados refletem a <b>open beta</b> e devem ser verificados a cada patch — comece qualquer ajuste pelo objeto <code>GAME</code>.<br/>
-    Incerteza principal: quanto de nível uma gem entrega. Ajuste <code>GAME.maxGemLevel</code> (se cada gem dá só +1, o solver aperta e a Wine vira essencial).
+    Preços e <code>valueOfGold</code> vêm de um snapshot da Auction House (open beta, tier raro) — atualize <code>GAME.slots[].market</code> a cada patch.<br/>
+    Weapon, Necklace e Ring ainda sem amostra de preço (<code>market: null</code>) — o solver os evita e sinaliza quando precisa deles. Ajuste também <code>GAME.maxGemLevel</code> conforme o jogo confirmar.
   </footer>
 </div>
 
@@ -349,16 +374,30 @@ const GAME = {
     { id: "witheredknight",name: "Withered Knight",role: "Tank sombrio · dreno de vida" },
   ],
 
-  // 8 slots. `sockets` = nº de gem sockets da peça (a confirmar por raridade/patch).
+  // 8 slots — nomes confirmados pelo menu Armor da Auction House.
+  // `sockets` = nº de gem sockets (a confirmar por raridade/patch).
+  // `market` = leitura de preço da Auction House (open beta, tier azul/raro):
+  //    vog = valueOfGold (banda 1–5, ver GAME.valueBands) · lo/hi/mid em gold.
+  //    null = slot sem amostra ainda (Weapon, Necklace, Ring não capturados).
   slots: [
-    { id: "weapon",  name: "Arma",           sockets: 3 },
-    { id: "offhand", name: "Mão secundária", sockets: 2 },
-    { id: "helm",    name: "Elmo",           sockets: 2 },
-    { id: "chest",   name: "Peitoral",       sockets: 3 },
-    { id: "gloves",  name: "Luvas",          sockets: 2 },
-    { id: "boots",   name: "Botas",          sockets: 2 },
-    { id: "amulet",  name: "Amuleto",        sockets: 1 },
-    { id: "ring",    name: "Anel",           sockets: 1 },
+    { id: "weapon", name: "Arma",              sockets: 3, market: null },
+    { id: "helm",   name: "Elmo · Head",       sockets: 2, market: { vog: 2, lo: 170, hi: 204, mid: 184 } },
+    { id: "chest",  name: "Peitoral · Clothes", sockets: 3, market: { vog: 3, lo: 176, hi: 219, mid: 199 } },
+    { id: "gloves", name: "Luvas · Gauntlets",  sockets: 2, market: { vog: 1, lo: 155, hi: 203, mid: 162 } },
+    { id: "pants",  name: "Calças · Pants",     sockets: 2, market: { vog: 3, lo: 178, hi: 194, mid: 186 } },
+    { id: "boots",  name: "Botas · Boots",      sockets: 2, market: { vog: 1, lo: 146, hi: 255, mid: 160 } },
+    { id: "amulet", name: "Amuleto · Necklace", sockets: 1, market: null },
+    { id: "ring",   name: "Anel · Ring",        sockets: 1, market: null },
+  ],
+
+  // Bandas de valueOfGold — derivadas do range observado na Auction House (146–255g).
+  // Absolutas em gold, comparáveis entre slots. `max` = teto (inclusivo) da banda.
+  valueBands: [
+    { vog: 1, max: 164,      label: "Barato",      color: "#6fbf8f" },
+    { vog: 2, max: 184,      label: "Médio-baixo", color: "#9fbf5a" },
+    { vog: 3, max: 204,      label: "Médio",       color: "#d9b45b" },
+    { vog: 4, max: 224,      label: "Alto",        color: "#e6a94e" },
+    { vog: 5, max: Infinity, label: "Premium",     color: "#d8586b" },
   ],
 
   // cat: offense | defense | utility
@@ -419,21 +458,26 @@ const catColor = c => (CAT[c] || {}).color || "var(--ink-faint)";
 const totalSockets = () => GAME.slots.reduce((s, sl) => s + sl.sockets, 0);
 
 /* =========================================================================
-   SOLVE — o núcleo.
-   Para cada affix: demanda = max(0, alvo − bônus da wine).
-   Distribui gems nos sockets em ordem das peças; cada socket entrega até
-   maxGemLevel. Alocação greedy por prioridade (ordem dos picks).
+   SOLVE — objetivo: MENOR CUSTO.
+   O usuário declara os affixes que quer; o solver escolhe o conjunto de peças
+   (slots) MAIS BARATO cujos sockets cubram a demanda total, e aloca as gems.
+     1. demanda_de_sockets = Σ ceil( max(0, alvo − wine) / maxGemLevel )
+     2. escolhe o subconjunto de slots de menor custo (market.mid) com sockets
+        suficientes — busca exaustiva (2^8 = 256 combinações, trivial).
+        Prefere slots com preço conhecido; usa os sem amostra só se faltar socket.
+     3. aloca as gems nas peças escolhidas (mais baratas primeiro).
+   Custo do build ≈ Σ preço das peças efetivamente usadas (compra-se a peça
+   inteira, com todos os seus sockets, por um preço só).
    ========================================================================= */
 function solve() {
   const MGL = Math.max(1, GAME.maxGemLevel);
-  const slotList = GAME.slots.map(sl => ({ id: sl.id, name: sl.name, free: sl.sockets, gems: [] }));
-  const total = totalSockets();
 
+  // --- 1. demanda por affix ---
   const results = state.picks.map((p, idx) => {
     const a = affix(p.id);
     const target = clampTarget(p.lvl);
     const wineBonus = wineBonusFor(p.id);
-    const demand = Math.max(0, target - wineBonus);          // níveis que as gems precisam cobrir
+    const demand = Math.max(0, target - wineBonus);
     const socketsNeeded = Math.ceil(demand / MGL);
     return {
       id: p.id, name: a ? a.name : p.id, cat: a ? a.cat : "utility",
@@ -441,41 +485,84 @@ function solve() {
       socketsUsed: 0, gemLevels: 0, achieved: 0, short: 0, reached: false,
     };
   });
+  const D = results.reduce((s, r) => s + r.socketsNeeded, 0);   // sockets necessários
 
-  // Alocação greedy respeitando prioridade: preenche sockets peça-a-peça.
-  let slotPtr = 0;
+  // --- 2. subconjunto de slots mais barato que cubra D sockets ---
+  const slots = GAME.slots.map(sl => ({
+    id: sl.id, name: sl.name, sockets: sl.sockets,
+    mid: sl.market ? sl.market.mid : null,
+    vog: sl.market ? sl.market.vog : null,
+    lo:  sl.market ? sl.market.lo  : null,
+    hi:  sl.market ? sl.market.hi  : null,
+  }));
+  const totalSocketsAll = slots.reduce((s, sl) => s + sl.sockets, 0);
+  const n = slots.length;
+
+  let best = { mask: 0, sockets: 0, knownCost: 0, unpriced: 0, pieces: 0, waste: 0 };
+  let bestFound = (D === 0);   // D=0 → conjunto vazio já é ótimo
+  for (let mask = 1; mask < (1 << n); mask++) {
+    let sockets = 0, knownCost = 0, unpriced = 0, pieces = 0;
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) {
+      const sl = slots[i]; sockets += sl.sockets; pieces++;
+      if (sl.mid == null) unpriced++; else knownCost += sl.mid;
+    }
+    if (sockets < D) continue;
+    const cand = { mask, sockets, knownCost, unpriced, pieces, waste: sockets - D };
+    if (!bestFound || cheaperPlan(cand, best)) { best = cand; bestFound = true; }
+  }
+
+  // peças escolhidas, ordenadas por preço (baratas primeiro; sem-preço ao fim)
+  const chosen = [];
+  for (let i = 0; i < n; i++) if (best.mask & (1 << i)) chosen.push({ ...slots[i], free: slots[i].sockets, gems: [] });
+  chosen.sort((a, b) => (a.mid == null) - (b.mid == null) || (a.mid || 0) - (b.mid || 0));
+
+  // --- 3. alocar gems (por prioridade do affix) nas peças mais baratas ---
+  let ptr = 0;
   for (const r of results) {
-    let need = r.socketsNeeded;
-    let remainingDemand = r.demand;
-    while (need > 0 && slotPtr < slotList.length) {
-      const sl = slotList[slotPtr];
-      if (sl.free <= 0) { slotPtr++; continue; }
-      // nível colocado nesta gem: cobre o restante da demanda, até MGL
-      const lvlHere = Math.min(MGL, remainingDemand);
+    let need = r.socketsNeeded, rem = r.demand;
+    while (need > 0 && ptr < chosen.length) {
+      const sl = chosen[ptr];
+      if (sl.free <= 0) { ptr++; continue; }
+      const lvlHere = Math.min(MGL, rem);
       sl.gems.push({ affix: r.id, cat: r.cat, level: lvlHere });
-      sl.free--;
-      r.socketsUsed++;
-      r.gemLevels += lvlHere;
-      remainingDemand -= lvlHere;
-      need--;
+      sl.free--; r.socketsUsed++; r.gemLevels += lvlHere; rem -= lvlHere; need--;
     }
     r.achieved = r.gemLevels + r.wineBonus;
     r.short = Math.max(0, r.target - r.achieved);
     r.reached = r.achieved >= GAME.thresholdLevel;
   }
 
-  const usedSockets = total - slotList.reduce((s, sl) => s + sl.free, 0);
-  const feasible = results.every(r => r.short === 0);
+  const usedPieces = chosen.filter(c => c.gems.length > 0);
+  const knownCost = usedPieces.reduce((s, c) => s + (c.mid || 0), 0);
+  const costLo    = usedPieces.reduce((s, c) => s + (c.lo  || 0), 0);
+  const costHi    = usedPieces.reduce((s, c) => s + (c.hi  || 0), 0);
+  const vogSum    = usedPieces.reduce((s, c) => s + (c.vog || 0), 0);
+  const unpricedUsed = usedPieces.filter(c => c.mid == null).length;
   const distinctActive = state.picks.length;
 
   return {
-    results, slotList, MGL,
-    total, usedSockets, feasible,
+    results, chosen, usedPieces, MGL,
+    D, totalSocketsAll,
+    feasibleSockets: D <= totalSocketsAll,
+    feasible: results.every(r => r.short === 0),
+    knownCost, costLo, costHi, vogSum, unpricedUsed,
     distinctActive,
     overCap: distinctActive > GAME.maxActiveAffixes,
     overCapBy: Math.max(0, distinctActive - GAME.maxActiveAffixes),
   };
 }
+
+// Menor custo, lexicográfico: menos peças sem preço → menor gold →
+// menos peças → menos sockets desperdiçados.
+function cheaperPlan(a, b) {
+  if (a.unpriced  !== b.unpriced)  return a.unpriced  < b.unpriced;
+  if (a.knownCost !== b.knownCost) return a.knownCost < b.knownCost;
+  if (a.pieces    !== b.pieces)    return a.pieces    < b.pieces;
+  return a.waste < b.waste;
+}
+
+const valueBandFor = gold => GAME.valueBands.find(b => gold <= b.max) || GAME.valueBands[GAME.valueBands.length - 1];
+const bandColor    = vog  => (GAME.valueBands.find(b => b.vog === vog) || {}).color || "var(--ink-faint)";
 
 function wineBonusFor(affixId) {
   const t = wineTier(state.wine.tier);
@@ -566,38 +653,71 @@ function renderResult() {
   const S = solve();
   const box = $("#result");
 
-  // ----- banner de viabilidade -----
-  let banner = "";
   if (!state.picks.length) {
-    box.innerHTML = `<div class="empty">Adicione affixes para ver a resolução.</div>`;
+    box.innerHTML = `<div class="empty">Escolha os affixes que você quer — o app calcula as peças <b>mais baratas</b> para montá-los.</div>`;
     return;
   }
+
+  // ----- banner de viabilidade -----
+  let banner = "";
   if (S.overCap) {
     banner += `<div class="banner bad">⚠️ ${S.distinctActive} affixes ativos — o limite é ${GAME.maxActiveAffixes}. Remova ${S.overCapBy} para uma build legal.</div>`;
   }
-  if (S.feasible && !S.overCap) {
-    banner += `<div class="banner ok">✔ Build viável — todos os alvos alcançados com ${S.usedSockets}/${S.total} sockets.</div>`;
+  if (!S.feasibleSockets) {
+    banner += `<div class="banner warn">A build pede ${S.D} sockets, mas o gear só tem ${S.totalSocketsAll}. Suba o tier da Victory Wine ou reduza os alvos.</div>`;
   } else if (!S.feasible) {
     const missing = S.results.filter(r => r.short > 0).map(r => `${r.name} (falta ${r.short})`).join(", ");
-    banner += `<div class="banner warn">Faltam sockets para: ${missing}. Suba o tier da Victory Wine ou remova affixes de menor prioridade.</div>`;
+    banner += `<div class="banner warn">Não coube tudo: ${missing}. Ajuste a Wine ou a prioridade.</div>`;
+  } else {
+    banner += `<div class="banner ok">✔ Plano mais barato — ${S.usedPieces.length} peça(s), ${S.D}/${S.totalSocketsAll} sockets usados.</div>`;
   }
 
-  // ----- stats -----
+  // ----- stats: CUSTO em destaque -----
   const reachedCount = S.results.filter(r => r.reached).length;
+  const costStr = S.usedPieces.length
+    ? (S.unpricedUsed
+        ? `≥${S.knownCost}<small>+${S.unpricedUsed} s/ preço</small>`
+        : `~${S.knownCost}<small>${S.costLo}–${S.costHi} g</small>`)
+    : `0`;
   const stats = `
     <div class="summary">
-      <div class="stat ${S.usedSockets > S.total ? "bad" : ""}">
-        <div class="k">Sockets</div><div class="v">${Math.min(S.usedSockets, S.total)}/${S.total}</div>
+      <div class="stat gold-stat">
+        <div class="k">Custo estimado</div><div class="v">${costStr}</div>
+      </div>
+      <div class="stat">
+        <div class="k">valueOfGold Σ</div><div class="v">${S.vogSum || 0}</div>
+      </div>
+      <div class="stat">
+        <div class="k">Peças a comprar</div><div class="v">${S.usedPieces.length}</div>
       </div>
       <div class="stat ${reachedCount ? "good" : ""}">
         <div class="k">Thresholds (nv${GAME.thresholdLevel})</div><div class="v">${reachedCount}</div>
       </div>
-      <div class="stat ${S.overCap ? "bad" : (S.distinctActive === GAME.maxActiveAffixes ? "warn" : "")}">
-        <div class="k">Affixes ativos</div><div class="v">${S.distinctActive}/${GAME.maxActiveAffixes}</div>
-      </div>
     </div>`;
 
-  // ----- linhas de affix -----
+  // ----- lista de compras: peças escolhidas, mais baratas primeiro -----
+  const shop = S.usedPieces.length ? `<div class="shop">` + S.usedPieces.map(pc => {
+    const cap = pc.sockets;
+    const filled = pc.gems.map(g =>
+      `<div class="socket filled" style="background:${catColor(g.cat)}" title="${affix(g.affix).name} +${g.level}">${g.level}</div>`).join("");
+    const empties = Array.from({ length: pc.free }, () => `<div class="socket">·</div>`).join("");
+    const affs = pc.gems.map(g => `${affix(g.affix).name} +${g.level}`).join(" · ") || "—";
+    const priceMain = pc.mid != null ? `~${pc.mid} g` : `s/ preço`;
+    const priceSub  = pc.mid != null ? `${pc.lo}–${pc.hi} g` : `sem amostra`;
+    const pill = pc.vog != null
+      ? `<span class="vpill" style="background:${bandColor(pc.vog)}">vog ${pc.vog}</span>`
+      : `<span class="vpill unk">vog ?</span>`;
+    return `<div class="shopc">
+      <div class="shead">
+        <div class="stitle">${pc.name} ${pill}</div>
+        <div class="sprice">${priceMain}<small>${priceSub}</small></div>
+      </div>
+      <div class="saff">${affs}</div>
+      <div class="sockets">${filled}${empties}</div>
+    </div>`;
+  }).join("") + `</div>` : "";
+
+  // ----- cobertura por affix -----
   const rows = S.results.map(r => {
     const pct = v => Math.min(100, (v / Math.max(r.target, GAME.thresholdLevel)) * 100);
     const gemsW = pct(r.gemLevels);
@@ -623,19 +743,17 @@ function renderResult() {
     </div>`;
   }).join("");
 
-  // ----- mapa de sockets -----
-  const slotMap = `<div class="slots">` + S.slotList.map(sl => {
-    const cap = GAME.slots.find(x => x.id === sl.id).sockets;
-    const filled = sl.gems.map(g =>
-      `<div class="socket filled" style="background:${catColor(g.cat)}" title="${affix(g.affix).name} +${g.level}">${g.level}</div>`).join("");
-    const empties = Array.from({ length: sl.free }, () => `<div class="socket">·</div>`).join("");
-    return `<div class="slot">
-      <div class="sn">${sl.name} <span class="cnt">${cap - sl.free}/${cap}</span></div>
-      <div class="sockets">${filled}${empties}</div>
-    </div>`;
+  // ----- legenda da escala valueOfGold -----
+  const legend = `<div class="vlegend">` + GAME.valueBands.map((b, i) => {
+    const lo = i === 0 ? 0 : GAME.valueBands[i - 1].max + 1;
+    const range = b.max === Infinity ? `${lo}+` : `${lo}–${b.max}`;
+    return `<span class="vchip"><span class="dot" style="background:${b.color}"></span>vog ${b.vog} · ${b.label} <small>${range} g</small></span>`;
   }).join("") + `</div>`;
 
-  box.innerHTML = banner + stats + `<div class="res">${rows}</div>` + slotMap;
+  box.innerHTML = banner + stats
+    + `<div class="section-h">🛒 Comprar (menor custo)</div>` + shop
+    + `<div class="section-h">Cobertura dos affixes</div><div class="res">${rows}</div>`
+    + legend;
 }
 
 function renderAll() {
