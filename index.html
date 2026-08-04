@@ -221,6 +221,16 @@
 
   .section-h { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 20px 0 10px; }
 
+  /* ---------- Seletor de modo ---------- */
+  .modes { display: inline-flex; gap: 3px; padding: 3px; background: var(--inset); border: 1px solid var(--border); border-radius: 999px; margin-bottom: 16px; }
+  .mtab { font-size: 12px; font-weight: 550; padding: 6px 13px; border-radius: 999px; background: transparent; border: none; color: var(--text-2); }
+  .mtab:hover { background: transparent; color: var(--text); }
+  .mtab.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+  @media (prefers-color-scheme: dark) { .mtab.on { background: var(--surface-2); } }
+
+  .shopc.base { background: var(--surface-2); border-style: dashed; }
+  .basetag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); background: var(--inset); border: 1px solid var(--border); padding: 1px 6px; border-radius: 999px; }
+
   /* ---------- Lista de compras ---------- */
   .shop { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   @media (max-width: 560px) { .shop { grid-template-columns: 1fr; } }
@@ -340,7 +350,7 @@
     <div>
       <div class="card">
         <h2>Plano de compra (menor custo)</h2>
-        <p class="sub">O solver escolhe o conjunto de peças <b>mais barato</b> cujos sockets cobrem os affixes. Preços da Auction House; cada socket entrega até <span id="mgl-label"></span> nível(is).</p>
+        <p class="sub"><b>Build completa</b> = 1 peça por slot (as 8 mais baratas), com as gems nos sockets mais baratos. <b>Só cobrir affixes</b> = o mínimo de peças. Preços da Auction House; cada socket entrega até <span id="mgl-label"></span> nível(is).</p>
         <div id="result"></div>
       </div>
     </div>
@@ -472,6 +482,7 @@ let state = {
   cls: GAME.classes[0].id,
   picks: [],                        // [{ id, lvl }]
   wine: { tier: "none", a1: "", a2: "" },
+  mode: "full",                     // "full" = build completa (8 slots) | "min" = só cobrir affixes
 };
 let catFilter = "all";              // filtro do dropdown de adição
 
@@ -524,22 +535,28 @@ function solve() {
   const totalSocketsAll = slots.reduce((s, sl) => s + sl.sockets, 0);
   const n = slots.length;
 
-  let best = { mask: 0, sockets: 0, knownCost: 0, unpriced: 0, pieces: 0, waste: 0 };
-  let bestFound = (D === 0);   // D=0 → conjunto vazio já é ótimo
-  for (let mask = 1; mask < (1 << n); mask++) {
-    let sockets = 0, knownCost = 0, unpriced = 0, pieces = 0;
-    for (let i = 0; i < n; i++) if (mask & (1 << i)) {
-      const sl = slots[i]; sockets += sl.sockets; pieces++;
-      if (sl.mid == null) unpriced++; else knownCost += sl.mid;
+  let chosen;
+  if (state.mode === "full") {
+    // BUILD COMPLETA: compra a peça mais barata de CADA um dos 8 slots.
+    chosen = slots.map(sl => ({ ...sl, free: sl.sockets, gems: [] }));
+  } else {
+    // MÍNIMO: subconjunto de slots mais barato cujos sockets cubram D.
+    let best = { mask: 0, sockets: 0, knownCost: 0, unpriced: 0, pieces: 0, waste: 0 };
+    let bestFound = (D === 0);   // D=0 → conjunto vazio já é ótimo
+    for (let mask = 1; mask < (1 << n); mask++) {
+      let sockets = 0, knownCost = 0, unpriced = 0, pieces = 0;
+      for (let i = 0; i < n; i++) if (mask & (1 << i)) {
+        const sl = slots[i]; sockets += sl.sockets; pieces++;
+        if (sl.mid == null) unpriced++; else knownCost += sl.mid;
+      }
+      if (sockets < D) continue;
+      const cand = { mask, sockets, knownCost, unpriced, pieces, waste: sockets - D };
+      if (!bestFound || cheaperPlan(cand, best)) { best = cand; bestFound = true; }
     }
-    if (sockets < D) continue;
-    const cand = { mask, sockets, knownCost, unpriced, pieces, waste: sockets - D };
-    if (!bestFound || cheaperPlan(cand, best)) { best = cand; bestFound = true; }
+    chosen = [];
+    for (let i = 0; i < n; i++) if (best.mask & (1 << i)) chosen.push({ ...slots[i], free: slots[i].sockets, gems: [] });
   }
-
-  // peças escolhidas, ordenadas por preço (baratas primeiro; sem-preço ao fim)
-  const chosen = [];
-  for (let i = 0; i < n; i++) if (best.mask & (1 << i)) chosen.push({ ...slots[i], free: slots[i].sockets, gems: [] });
+  // ordena por preço: baratas primeiro (recebem as gems), sem-preço ao fim
   chosen.sort((a, b) => (a.mid == null) - (b.mid == null) || (a.mid || 0) - (b.mid || 0));
 
   // --- 3. alocar gems (por prioridade do affix) nas peças mais baratas ---
@@ -558,16 +575,18 @@ function solve() {
     r.reached = r.achieved >= GAME.thresholdLevel;
   }
 
+  // custo = TODAS as peças compradas (no modo full, os 8 slots)
+  const boughtPieces = chosen;
   const usedPieces = chosen.filter(c => c.gems.length > 0);
-  const knownCost = usedPieces.reduce((s, c) => s + (c.mid || 0), 0);
-  const costLo    = usedPieces.reduce((s, c) => s + (c.lo  || 0), 0);
-  const costHi    = usedPieces.reduce((s, c) => s + (c.hi  || 0), 0);
-  const vogSum    = usedPieces.reduce((s, c) => s + (c.vog || 0), 0);
-  const unpricedUsed = usedPieces.filter(c => c.mid == null).length;
+  const knownCost = boughtPieces.reduce((s, c) => s + (c.mid || 0), 0);
+  const costLo    = boughtPieces.reduce((s, c) => s + (c.lo  || 0), 0);
+  const costHi    = boughtPieces.reduce((s, c) => s + (c.hi  || 0), 0);
+  const vogSum    = boughtPieces.reduce((s, c) => s + (c.vog || 0), 0);
+  const unpricedUsed = boughtPieces.filter(c => c.mid == null).length;
   const distinctActive = state.picks.length;
 
   return {
-    results, chosen, usedPieces, MGL,
+    results, chosen, boughtPieces, usedPieces, MGL, mode: state.mode,
     D, totalSocketsAll,
     feasibleSockets: D <= totalSocketsAll,
     feasible: results.every(r => r.short === 0),
@@ -684,6 +703,12 @@ function renderResult() {
     return;
   }
 
+  // ----- seletor de modo -----
+  const modes = `<div class="modes">
+    <button class="mtab ${S.mode === "full" ? "on" : ""}" data-mode="full">Build completa · 8 slots</button>
+    <button class="mtab ${S.mode === "min" ? "on" : ""}" data-mode="min">Só cobrir affixes</button>
+  </div>`;
+
   // ----- banner de viabilidade -----
   let banner = "";
   if (S.overCap) {
@@ -694,41 +719,44 @@ function renderResult() {
   } else if (!S.feasible) {
     const missing = S.results.filter(r => r.short > 0).map(r => `${r.name} (falta ${r.short})`).join(", ");
     banner += `<div class="banner warn">Não coube tudo: ${missing}. Ajuste a Wine ou a prioridade.</div>`;
+  } else if (S.mode === "full") {
+    banner += `<div class="banner ok">✔ Build completa — comprar ${S.boughtPieces.length} peças (1 por slot); ${S.D}/${S.totalSocketsAll} sockets com gem.</div>`;
   } else {
-    banner += `<div class="banner ok">✔ Plano mais barato — ${S.usedPieces.length} peça(s), ${S.D}/${S.totalSocketsAll} sockets usados.</div>`;
+    banner += `<div class="banner ok">✔ Plano mínimo — ${S.usedPieces.length} peça(s) cobrem os affixes; ${S.D}/${S.totalSocketsAll} sockets usados.</div>`;
   }
 
   // ----- stats: CUSTO em destaque -----
   const reachedCount = S.results.filter(r => r.reached).length;
-  const costStr = S.usedPieces.length
+  const costStr = S.boughtPieces.length
     ? (S.unpricedUsed
-        ? `≥${S.knownCost}<small>+${S.unpricedUsed} s/ preço</small>`
+        ? `≥${S.knownCost}<small>+${S.unpricedUsed} slot(s) s/ preço</small>`
         : `~${S.knownCost}<small>${S.costLo}–${S.costHi} g</small>`)
     : `0`;
   const stats = `
     <div class="summary">
       <div class="stat gold-stat">
-        <div class="k">Custo estimado</div><div class="v">${costStr}</div>
+        <div class="k">Custo total</div><div class="v">${costStr}</div>
       </div>
       <div class="stat">
         <div class="k">valueOfGold Σ</div><div class="v">${S.vogSum || 0}</div>
       </div>
       <div class="stat">
-        <div class="k">Peças a comprar</div><div class="v">${S.usedPieces.length}</div>
+        <div class="k">Itens a comprar</div><div class="v">${S.boughtPieces.length}</div>
       </div>
       <div class="stat ${reachedCount ? "good" : ""}">
         <div class="k">Thresholds (nv${GAME.thresholdLevel})</div><div class="v">${reachedCount}</div>
       </div>
     </div>`;
 
-  // ----- lista de compras: peça a peça, gem por socket -----
-  const shop = S.usedPieces.length ? `<div class="shop">` + S.usedPieces.map((pc, pi) => {
+  // ----- lista de compras: cada item, com as gems por socket -----
+  const shop = S.boughtPieces.length ? `<div class="shop">` + S.boughtPieces.map((pc, pi) => {
     const priceMain = pc.mid != null ? `~${pc.mid} g` : `s/ preço`;
     const priceSub  = pc.mid != null ? `${pc.lo}–${pc.hi} g` : `sem amostra`;
     const pill = pc.vog != null
       ? `<span class="vpill" style="background:${bandColor(pc.vog)}">vog ${pc.vog}</span>`
       : `<span class="vpill unk">vog ?</span>`;
-    // uma linha por socket da peça: gem alocada ou vazio
+    const noGem = pc.gems.length === 0;
+    // uma linha por socket: gem alocada ou socket livre
     const gemRows = Array.from({ length: pc.sockets }, (_, i) => {
       const g = pc.gems[i];
       if (g) {
@@ -745,9 +773,9 @@ function renderResult() {
         <span class="gname">— socket livre —</span>
       </div>`;
     }).join("");
-    return `<div class="shopc">
+    return `<div class="shopc ${noGem ? "base" : ""}">
       <div class="shead">
-        <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name} ${pill}</div>
+        <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name} ${pill}${noGem ? `<span class="basetag">base</span>` : ""}</div>
         <div class="sprice">${priceMain}<small>${priceSub}</small></div>
       </div>
       <div class="gemlist">${gemRows}</div>
@@ -787,8 +815,12 @@ function renderResult() {
     return `<span class="vchip"><span class="dot" style="background:${b.color}"></span>vog ${b.vog} · ${b.label} <small>${range} g</small></span>`;
   }).join("") + `</div>`;
 
-  box.innerHTML = banner + stats
-    + `<div class="section-h">🛒 Comprar (menor custo)</div>` + shop
+  const shopLabel = S.mode === "full"
+    ? `🛒 Lista de compras — build completa (${S.boughtPieces.length} itens)`
+    : `🛒 Lista de compras — mínimo (${S.boughtPieces.length} itens)`;
+
+  box.innerHTML = modes + banner + stats
+    + `<div class="section-h">${shopLabel}</div>` + shop
     + `<div class="section-h">Cobertura dos affixes</div><div class="res">${rows}</div>`
     + legend;
 }
@@ -807,10 +839,11 @@ function renderAll() {
    EVENTOS — delegação global; tudo re-renderiza ao vivo.
    ========================================================================= */
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-cls],[data-cat],[data-del],#btn-add,#btn-share,#btn-reset");
+  const t = e.target.closest("[data-cls],[data-cat],[data-mode],[data-del],#btn-add,#btn-share,#btn-reset");
   if (!t) return;
 
   if (t.dataset.cls)  { state.cls = t.dataset.cls; sync(); return; }
+  if (t.dataset.mode) { state.mode = t.dataset.mode; sync(); return; }
   if (t.dataset.cat)  { catFilter = t.dataset.cat; renderCatFilter(); renderAffixSelect(); return; }
   if (t.dataset.del)  {
     state.picks = state.picks.filter(p => p.id !== t.dataset.del);
@@ -846,7 +879,7 @@ function addAffix() {
 }
 
 function resetBuild() {
-  state = { cls: GAME.classes[0].id, picks: [], wine: { tier: "none", a1: "", a2: "" } };
+  state = { cls: GAME.classes[0].id, picks: [], wine: { tier: "none", a1: "", a2: "" }, mode: "full" };
   catFilter = "all";
   sync();
 }
@@ -859,6 +892,7 @@ function encodeState() {
     c: state.cls,
     p: state.picks.map(p => [p.id, p.lvl]),
     w: [state.wine.tier, state.wine.a1, state.wine.a2],
+    m: state.mode,
   };
   return btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
 }
@@ -881,6 +915,7 @@ function loadFromHash() {
       state.wine.a1 = state.picks.some(p => p.id === a1) ? a1 : "";
       state.wine.a2 = state.picks.some(p => p.id === a2) ? a2 : "";
     }
+    if (o.m === "full" || o.m === "min") state.mode = o.m;
   } catch (_) { /* hash inválido: ignora */ }
 }
 
