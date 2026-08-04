@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gyldsmith — Mistfall Hunter Build Planner</title>
+<meta name="description" content="Planejador de builds para Mistfall Hunter. Declare os affixes que quer e o solver aloca as gems nos sockets." />
+
+<!-- Fontes carregadas non-blocking: não travam o render em sandbox/preview. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  media="print"
+  onload="this.media='all'"
+  href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap"
+/>
+<noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" />
+</noscript>
+
+<style>
+  :root {
+    /* Paleta dark-fantasy: ouro "Gyldenblood" + vinho "Victory Wine" sobre névoa */
+    --bg:          #0d0b12;
+    --bg-2:        #141019;
+    --mist:        #1b1622;
+    --panel:       #191420;
+    --panel-2:     #211a2b;
+    --line:        #2e2536;
+    --line-soft:   #241d2e;
+
+    --ink:         #ece7f2;
+    --ink-dim:     #b4a9c4;
+    --ink-faint:   #7d7290;
+
+    --gold:        #d9b45b;  /* Gyldenblood */
+    --gold-bright: #f2d488;
+    --gold-deep:   #a67c2e;
+
+    --wine:        #8e2c46;  /* Victory Wine */
+    --wine-bright: #c6435f;
+
+    --ok:          #6fbf8f;
+    --warn:        #e6a94e;
+    --bad:         #d8586b;
+
+    --cat-off:     #d8586b;  /* offense  */
+    --cat-def:     #5a9fd8;  /* defense  */
+    --cat-uti:     #9d7fd8;  /* utility  */
+
+    --r:           12px;
+    --r-sm:        8px;
+    --shadow:      0 12px 40px rgba(0,0,0,.45);
+
+    --font-display: "Cinzel", Georgia, "Times New Roman", serif;
+    --font-body:    "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(142,44,70,.16), transparent 60%),
+      radial-gradient(1000px 700px at -10% 10%, rgba(217,180,91,.10), transparent 55%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 60%, var(--bg) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* névoa sutil animada */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(600px 300px at 20% 80%, rgba(255,255,255,.03), transparent 70%),
+      radial-gradient(500px 260px at 70% 30%, rgba(255,255,255,.025), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ---------- Header ---------- */
+  header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .sigil {
+    width: 46px; height: 46px; flex: 0 0 auto; border-radius: 11px;
+    display: grid; place-items: center;
+    background: linear-gradient(160deg, var(--gold-deep), #3a2c14);
+    border: 1px solid rgba(242,212,136,.35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 6px 18px rgba(0,0,0,.4);
+    font-family: var(--font-display); font-weight: 700; color: #1a130a; font-size: 24px;
+  }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 3vw, 30px); margin: 0; letter-spacing: .5px;
+       background: linear-gradient(180deg, var(--gold-bright), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tagline { color: var(--ink-dim); font-size: 13px; margin-top: 2px; }
+  .tagline b { color: var(--gold); font-weight: 600; }
+
+  .top-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  /* ---------- Botões / controles ---------- */
+  button {
+    font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+    padding: 9px 13px; cursor: pointer; transition: .15s border-color, .15s background, .15s transform;
+  }
+  button:hover { border-color: var(--gold-deep); background: #271f31; }
+  button:active { transform: translateY(1px); }
+  button.gold { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: #1a130a; border-color: var(--gold-bright); }
+  button.gold:hover { filter: brightness(1.06); }
+  button.ghost { background: transparent; }
+  button.tiny { padding: 5px 8px; font-size: 12px; }
+  button.icon { padding: 5px 9px; line-height: 1; color: var(--ink-faint); }
+  button.icon:hover { color: var(--bad); }
+
+  select, input[type="number"] {
+    font-family: var(--font-body); font-size: 13px; color: var(--ink);
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px;
+  }
+  select:focus, input:focus { outline: none; border-color: var(--gold-deep); }
+  input[type="number"] { width: 62px; font-family: var(--font-mono); text-align: center; }
+
+  /* ---------- Layout ---------- */
+  .grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--line); border-radius: var(--r);
+    box-shadow: var(--shadow); padding: 18px;
+  }
+  .card + .card { margin-top: 18px; }
+  .card h2 {
+    font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: .6px;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 4px;
+  }
+  .card .sub { color: var(--ink-faint); font-size: 12px; margin: 0 0 14px; }
+
+  /* ---------- Classes ---------- */
+  .classes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  @media (max-width: 520px) { .classes { grid-template-columns: repeat(2, 1fr); } }
+  .cls {
+    text-align: left; padding: 11px 12px; border-radius: var(--r-sm);
+    background: var(--bg-2); border: 1px solid var(--line-soft); cursor: pointer; transition: .15s;
+  }
+  .cls:hover { border-color: var(--gold-deep); }
+  .cls.on { border-color: var(--gold); background: #271f31; box-shadow: inset 0 0 0 1px rgba(242,212,136,.25); }
+  .cls .n { font-family: var(--font-display); font-weight: 600; font-size: 13.5px; color: var(--ink); }
+  .cls .r { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+  /* ---------- Affix picker ---------- */
+  .add-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .add-row select { flex: 1 1 auto; min-width: 160px; }
+
+  .cat-filter { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .chip {
+    font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+    background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-dim);
+  }
+  .chip.on { color: var(--ink); border-color: var(--gold-deep); background: #271f31; }
+  .chip .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  .picks { display: flex; flex-direction: column; gap: 8px; }
+  .pick {
+    display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: var(--r-sm);
+    background: var(--bg-2); border: 1px solid var(--line-soft);
+  }
+  .pick .catbar { width: 4px; align-self: stretch; border-radius: 3px; }
+  .pick .info .nm { font-weight: 600; font-size: 13.5px; }
+  .pick .info .ds { font-size: 11.5px; color: var(--ink-faint); }
+  .pick .lvl { display: flex; align-items: center; gap: 6px; }
+  .pick .lvl label { font-size: 11px; color: var(--ink-faint); }
+  .pick .prio { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
+  .empty { color: var(--ink-faint); font-size: 13px; padding: 14px 4px; text-align: center; font-style: italic; }
+
+  /* ---------- Wine ---------- */
+  .wine-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  @media (max-width: 520px) { .wine-row { grid-template-columns: 1fr; } }
+  .wine-row label { font-size: 11px; color: var(--ink-faint); display: block; margin-bottom: 4px; }
+  .wine-row select { width: 100%; }
+
+  /* ---------- Resultado ---------- */
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat {
+    flex: 1 1 120px; background: var(--bg-2); border: 1px solid var(--line-soft);
+    border-radius: var(--r-sm); padding: 10px 12px;
+  }
+  .stat .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-faint); }
+  .stat .v { font-family: var(--font-mono); font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .stat.good .v { color: var(--ok); } .stat.bad .v { color: var(--bad); } .stat.warn .v { color: var(--warn); }
+
+  .banner { padding: 11px 13px; border-radius: var(--r-sm); font-size: 13px; margin-bottom: 14px; border: 1px solid; }
+  .banner.ok  { background: rgba(111,191,143,.10); border-color: rgba(111,191,143,.35); color: #bfe6cd; }
+  .banner.bad { background: rgba(216,88,107,.10);  border-color: rgba(216,88,107,.4);  color: #f0bcc4; }
+  .banner.warn{ background: rgba(230,169,78,.10);  border-color: rgba(230,169,78,.4);  color: #f2d9b0; }
+
+  .res { display: flex; flex-direction: column; gap: 9px; }
+  .rrow {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+    padding: 11px 12px; border-radius: var(--r-sm); background: var(--bg-2); border: 1px solid var(--line-soft);
+  }
+  .rrow.reached { border-color: rgba(242,212,136,.4); box-shadow: inset 0 0 0 1px rgba(242,212,136,.12); }
+  .rrow.short { border-color: rgba(216,88,107,.4); }
+  .rrow .catbar { width: 4px; align-self: stretch; border-radius: 3px; }
+  .rrow .nm { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 7px; }
+  .rrow .badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 2px 6px; border-radius: 999px; }
+  .badge.thr { background: linear-gradient(180deg, var(--gold-bright), var(--gold)); color: #1a130a; }
+  .badge.wine{ background: rgba(198,67,95,.18); color: var(--wine-bright); border: 1px solid rgba(198,67,95,.4); }
+  .badge.miss{ background: rgba(216,88,107,.18); color: var(--bad); border: 1px solid rgba(216,88,107,.4); }
+  .rrow .meta { font-size: 11.5px; color: var(--ink-faint); margin-top: 3px; }
+
+  .bar { position: relative; height: 8px; border-radius: 999px; background: #241d2e; overflow: hidden; }
+  .bar > span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+  .bar .gems { background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+  .bar .wine { background: linear-gradient(90deg, var(--wine), var(--wine-bright)); }
+  .bar .thr-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--gold-bright); }
+
+  .rrow .num { font-family: var(--font-mono); font-weight: 700; font-size: 16px; text-align: right; white-space: nowrap; }
+  .rrow .num small { display: block; font-size: 10px; font-weight: 500; color: var(--ink-faint); }
+
+  /* ---------- Socket map ---------- */
+  .slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+  @media (max-width: 520px) { .slots { grid-template-columns: 1fr; } }
+  .slot { background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 9px 11px; }
+  .slot .sn { font-size: 11.5px; color: var(--ink-dim); font-weight: 600; display: flex; justify-content: space-between; }
+  .slot .sn .cnt { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-faint); }
+  .sockets { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  .socket {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line);
+    display: grid; place-items: center; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    background: #17121e;
+  }
+  .socket.filled { color: #1a130a; }
+
+  footer.note { margin-top: 26px; color: var(--ink-faint); font-size: 12px; text-align: center; line-height: 1.7; }
+  footer.note code { font-family: var(--font-mono); color: var(--gold); background: rgba(217,180,91,.08); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--gold); }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--panel-2); border: 1px solid var(--gold-deep); color: var(--ink);
+    padding: 10px 16px; border-radius: 999px; font-size: 13px; box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; transition: .22s; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="sigil">G</div>
+      <div>
+        <h1>Gyldsmith</h1>
+        <div class="tagline"><b>Mistfall Hunter</b> · Build Planner — declare os affixes, o solver aloca as gems</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="ghost" id="btn-share" title="Copiar link da build">🔗 Copiar link</button>
+      <button class="ghost" id="btn-reset" title="Limpar build">↺ Reset</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ===================== COLUNA ESQUERDA: entrada ===================== -->
+    <div>
+      <div class="card">
+        <h2>Classe</h2>
+        <p class="sub">Escolha o Hunter. Afeta apenas o rótulo da build (as regras de socket são universais na beta).</p>
+        <div class="classes" id="classes"></div>
+      </div>
+
+      <div class="card">
+        <h2>Affixes desejados</h2>
+        <p class="sub">Adicione o affix e o nível-alvo. A ordem = prioridade na alocação — o que sobrar de socket falta nos últimos.</p>
+
+        <div class="cat-filter" id="cat-filter"></div>
+        <div class="add-row">
+          <select id="affix-select"></select>
+          <button class="gold" id="btn-add">+ Adicionar</button>
+        </div>
+        <div class="picks" id="picks"></div>
+      </div>
+
+      <div class="card">
+        <h2>Victory Wine</h2>
+        <p class="sub">Consumível de run: 2 affixes temporários pra fechar a conta e bater thresholds sem gastar socket. Só lista affixes já escolhidos.</p>
+        <div class="wine-row">
+          <div>
+            <label>Tier</label>
+            <select id="wine-tier"></select>
+          </div>
+          <div>
+            <label>Affix A</label>
+            <select id="wine-a1"></select>
+          </div>
+          <div>
+            <label>Affix B</label>
+            <select id="wine-a2"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== COLUNA DIREITA: resultado ===================== -->
+    <div>
+      <div class="card">
+        <h2>Resolução da build</h2>
+        <p class="sub">O solver distribui gems nos sockets por prioridade. Cada socket entrega até <span id="mgl-label"></span> nível(is).</p>
+        <div id="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">
+    Dados refletem a <b>open beta</b> e devem ser verificados a cada patch — comece qualquer ajuste pelo objeto <code>GAME</code>.<br/>
+    Incerteza principal: quanto de nível uma gem entrega. Ajuste <code>GAME.maxGemLevel</code> (se cada gem dá só +1, o solver aperta e a Wine vira essencial).
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   GAME — base de dados editável. Toda mudança de patch começa AQUI.
+   Reflete guias da open beta (29/07/2026); valores a confirmar no jogo.
+   ========================================================================= */
+const GAME = {
+  // --- Parâmetros globais ---
+  thresholdLevel:   5,   // nível que desbloqueia o bônus extra (objetivo central)
+  maxActiveAffixes: 5,   // máximo de affixes distintos ativos ao mesmo tempo
+  maxGemLevel:      5,    // quanto de nível UMA gem/socket entrega  (⚠️ incerto — pode ser 1)
+  maxTarget:        9,    // nível-alvo máximo selecionável por affix
+
+  classes: [
+    { id: "mercenary",     name: "Mercenary",      role: "Bruiser · escudo & bloqueio" },
+    { id: "blackarrow",    name: "Blackarrow",     role: "Ranger · dano físico à distância" },
+    { id: "sorcerer",      name: "Sorcerer",       role: "Caster · dano elemental" },
+    { id: "shadowstrix",   name: "Shadowstrix",    role: "Assassino · burst & mobilidade" },
+    { id: "seer",          name: "Seer",           role: "Suporte · cura & controle" },
+    { id: "witheredknight",name: "Withered Knight",role: "Tank sombrio · dreno de vida" },
+  ],
+
+  // 8 slots. `sockets` = nº de gem sockets da peça (a confirmar por raridade/patch).
+  slots: [
+    { id: "weapon",  name: "Arma",           sockets: 3 },
+    { id: "offhand", name: "Mão secundária", sockets: 2 },
+    { id: "helm",    name: "Elmo",           sockets: 2 },
+    { id: "chest",   name: "Peitoral",       sockets: 3 },
+    { id: "gloves",  name: "Luvas",          sockets: 2 },
+    { id: "boots",   name: "Botas",          sockets: 2 },
+    { id: "amulet",  name: "Amuleto",        sockets: 1 },
+    { id: "ring",    name: "Anel",           sockets: 1 },
+  ],
+
+  // cat: offense | defense | utility
+  affixes: [
+    { id: "fortitude",  name: "Fortitude",       cat: "defense", desc: "Vida máxima e resistência a atordoamento." },
+    { id: "ironhide",   name: "Ironhide",        cat: "defense", desc: "Armadura física; reduz dano de golpe." },
+    { id: "block",      name: "Bulwark",         cat: "defense", desc: "Chance e valor de bloqueio com off-hand." },
+    { id: "warding",    name: "Warding",         cat: "defense", desc: "Resistência elemental a todas as escolas." },
+    { id: "regen",      name: "Lifewell",        cat: "defense", desc: "Regeneração de vida fora de combate." },
+
+    { id: "ferocity",   name: "Ferocity",        cat: "offense", desc: "Dano de ataque corpo-a-corpo." },
+    { id: "marksman",   name: "Marksmanship",    cat: "offense", desc: "Dano e alcance de ataques à distância." },
+    { id: "pyromancy",  name: "Pyromancy",       cat: "offense", desc: "Dano de fogo e chance de queimadura." },
+    { id: "crit",       name: "Killer's Edge",   cat: "offense", desc: "Chance e multiplicador de crítico." },
+    { id: "rend",       name: "Rend",            cat: "offense", desc: "Sangramento acumulável em acertos." },
+    { id: "lifesteal",  name: "Sanguine",        cat: "offense", desc: "Converte dano causado em vida." },
+
+    { id: "haste",      name: "Swiftness",       cat: "utility", desc: "Velocidade de movimento e de ataque." },
+    { id: "stealth",    name: "Umbral Step",     cat: "utility", desc: "Reduz alcance de detecção; abre furtividade." },
+    { id: "scavenger",  name: "Scavenger",       cat: "utility", desc: "Mais loot e chance de raridade na extração." },
+    { id: "cooldown",   name: "Attunement",      cat: "utility", desc: "Reduz recarga de habilidades." },
+    { id: "vision",     name: "Farsight",        cat: "utility", desc: "Revela inimigos e baús próximos no minimapa." },
+    { id: "carry",      name: "Beast of Burden", cat: "utility", desc: "Aumenta capacidade de carga na run." },
+  ],
+
+  // Victory Wine — 4 tiers, cada um concede +N nível em 2 affixes escolhidos.
+  wineTiers: [
+    { id: "none",  name: "— sem Wine —",         bonus: 0 },
+    { id: "mortal",name: "Mortal Tonic (+1)",    bonus: 1 },
+    { id: "hero",  name: "Hero Ale (+2)",        bonus: 2 },
+    { id: "war",   name: "War Blood (+3)",       bonus: 3 },
+    { id: "god",   name: "God's Brew (+4)",      bonus: 4 },
+  ],
+};
+
+const CAT = {
+  offense: { label: "Ofensivo", color: "var(--cat-off)" },
+  defense: { label: "Defensivo", color: "var(--cat-def)" },
+  utility: { label: "Utilitário", color: "var(--cat-uti)" },
+};
+
+/* =========================================================================
+   STATE — picks preserva ORDEM = prioridade de alocação.
+   ========================================================================= */
+let state = {
+  cls: GAME.classes[0].id,
+  picks: [],                        // [{ id, lvl }]
+  wine: { tier: "none", a1: "", a2: "" },
+};
+let catFilter = "all";              // filtro do dropdown de adição
+
+/* ---------- helpers ---------- */
+const $  = (s, r=document) => r.querySelector(s);
+const byId = (list, id) => list.find(x => x.id === id);
+const affix = id => byId(GAME.affixes, id);
+const wineTier = id => byId(GAME.wineTiers, id) || GAME.wineTiers[0];
+const catColor = c => (CAT[c] || {}).color || "var(--ink-faint)";
+const totalSockets = () => GAME.slots.reduce((s, sl) => s + sl.sockets, 0);
+
+/* =========================================================================
+   SOLVE — o núcleo.
+   Para cada affix: demanda = max(0, alvo − bônus da wine).
+   Distribui gems nos sockets em ordem das peças; cada socket entrega até
+   maxGemLevel. Alocação greedy por prioridade (ordem dos picks).
+   ========================================================================= */
+function solve() {
+  const MGL = Math.max(1, GAME.maxGemLevel);
+  const slotList = GAME.slots.map(sl => ({ id: sl.id, name: sl.name, free: sl.sockets, gems: [] }));
+  const total = totalSockets();
+
+  const results = state.picks.map((p, idx) => {
+    const a = affix(p.id);
+    const target = clampTarget(p.lvl);
+    const wineBonus = wineBonusFor(p.id);
+    const demand = Math.max(0, target - wineBonus);          // níveis que as gems precisam cobrir
+    const socketsNeeded = Math.ceil(demand / MGL);
+    return {
+      id: p.id, name: a ? a.name : p.id, cat: a ? a.cat : "utility",
+      priority: idx + 1, target, wineBonus, demand, socketsNeeded,
+      socketsUsed: 0, gemLevels: 0, achieved: 0, short: 0, reached: false,
+    };
+  });
+
+  // Alocação greedy respeitando prioridade: preenche sockets peça-a-peça.
+  let slotPtr = 0;
+  for (const r of results) {
+    let need = r.socketsNeeded;
+    let remainingDemand = r.demand;
+    while (need > 0 && slotPtr < slotList.length) {
+      const sl = slotList[slotPtr];
+      if (sl.free <= 0) { slotPtr++; continue; }
+      // nível colocado nesta gem: cobre o restante da demanda, até MGL
+      const lvlHere = Math.min(MGL, remainingDemand);
+      sl.gems.push({ affix: r.id, cat: r.cat, level: lvlHere });
+      sl.free--;
+      r.socketsUsed++;
+      r.gemLevels += lvlHere;
+      remainingDemand -= lvlHere;
+      need--;
+    }
+    r.achieved = r.gemLevels + r.wineBonus;
+    r.short = Math.max(0, r.target - r.achieved);
+    r.reached = r.achieved >= GAME.thresholdLevel;
+  }
+
+  const usedSockets = total - slotList.reduce((s, sl) => s + sl.free, 0);
+  const feasible = results.every(r => r.short === 0);
+  const distinctActive = state.picks.length;
+
+  return {
+    results, slotList, MGL,
+    total, usedSockets, feasible,
+    distinctActive,
+    overCap: distinctActive > GAME.maxActiveAffixes,
+    overCapBy: Math.max(0, distinctActive - GAME.maxActiveAffixes),
+  };
+}
+
+function wineBonusFor(affixId) {
+  const t = wineTier(state.wine.tier);
+  if (!t || t.bonus === 0) return 0;
+  let b = 0;
+  if (state.wine.a1 === affixId) b += t.bonus;
+  if (state.wine.a2 === affixId) b += t.bonus;    // permite dobrar num único affix, se quiser
+  return b;
+}
+
+const clampTarget = v => Math.min(GAME.maxTarget, Math.max(1, parseInt(v, 10) || 1));
+
+/* =========================================================================
+   RENDER
+   ========================================================================= */
+function renderClasses() {
+  $("#classes").innerHTML = GAME.classes.map(c => `
+    <button class="cls ${c.id === state.cls ? "on" : ""}" data-cls="${c.id}">
+      <div class="n">${c.name}</div>
+      <div class="r">${c.role}</div>
+    </button>`).join("");
+}
+
+function renderCatFilter() {
+  const cats = [["all", "Todos", "var(--ink-dim)"],
+    ...Object.entries(CAT).map(([k, v]) => [k, v.label, v.color])];
+  $("#cat-filter").innerHTML = cats.map(([k, label, color]) => `
+    <span class="chip ${k === catFilter ? "on" : ""}" data-cat="${k}">
+      <span class="dot" style="background:${color}"></span>${label}
+    </span>`).join("");
+}
+
+function renderAffixSelect() {
+  const chosen = new Set(state.picks.map(p => p.id));
+  const opts = GAME.affixes
+    .filter(a => catFilter === "all" || a.cat === catFilter)
+    .filter(a => !chosen.has(a.id))
+    .map(a => `<option value="${a.id}">${a.name} · ${CAT[a.cat].label}</option>`)
+    .join("");
+  const sel = $("#affix-select");
+  sel.innerHTML = opts || `<option value="">— todos já adicionados —</option>`;
+  $("#btn-add").disabled = !opts;
+}
+
+function renderPicks() {
+  const box = $("#picks");
+  if (!state.picks.length) {
+    box.innerHTML = `<div class="empty">Nenhum affix ainda. Adicione acima e defina o nível-alvo (threshold em ${GAME.thresholdLevel}).</div>`;
+    return;
+  }
+  box.innerHTML = state.picks.map((p, i) => {
+    const a = affix(p.id);
+    return `<div class="pick" data-id="${p.id}">
+      <div class="catbar" style="background:${catColor(a.cat)}"></div>
+      <div class="info">
+        <div class="nm">${a.name}</div>
+        <div class="ds">${a.desc}</div>
+      </div>
+      <div class="lvl">
+        <label>alvo</label>
+        <input type="number" min="1" max="${GAME.maxTarget}" value="${p.lvl}" data-lvl="${p.id}" />
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="prio">#${i + 1}</span>
+        <button class="icon" data-del="${p.id}" title="Remover">✕</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderWine() {
+  $("#wine-tier").innerHTML = GAME.wineTiers
+    .map(t => `<option value="${t.id}" ${t.id === state.wine.tier ? "selected" : ""}>${t.name}</option>`).join("");
+
+  const chosenOpts = (sel) => `<option value="">— nenhum —</option>` + state.picks.map(p => {
+    const a = affix(p.id);
+    return `<option value="${p.id}" ${sel === p.id ? "selected" : ""}>${a.name}</option>`;
+  }).join("");
+
+  const disabled = wineTier(state.wine.tier).bonus === 0;
+  const a1 = $("#wine-a1"), a2 = $("#wine-a2");
+  a1.innerHTML = chosenOpts(state.wine.a1);
+  a2.innerHTML = chosenOpts(state.wine.a2);
+  a1.disabled = a2.disabled = disabled;
+}
+
+function renderResult() {
+  const S = solve();
+  const box = $("#result");
+
+  // ----- banner de viabilidade -----
+  let banner = "";
+  if (!state.picks.length) {
+    box.innerHTML = `<div class="empty">Adicione affixes para ver a resolução.</div>`;
+    return;
+  }
+  if (S.overCap) {
+    banner += `<div class="banner bad">⚠️ ${S.distinctActive} affixes ativos — o limite é ${GAME.maxActiveAffixes}. Remova ${S.overCapBy} para uma build legal.</div>`;
+  }
+  if (S.feasible && !S.overCap) {
+    banner += `<div class="banner ok">✔ Build viável — todos os alvos alcançados com ${S.usedSockets}/${S.total} sockets.</div>`;
+  } else if (!S.feasible) {
+    const missing = S.results.filter(r => r.short > 0).map(r => `${r.name} (falta ${r.short})`).join(", ");
+    banner += `<div class="banner warn">Faltam sockets para: ${missing}. Suba o tier da Victory Wine ou remova affixes de menor prioridade.</div>`;
+  }
+
+  // ----- stats -----
+  const reachedCount = S.results.filter(r => r.reached).length;
+  const stats = `
+    <div class="summary">
+      <div class="stat ${S.usedSockets > S.total ? "bad" : ""}">
+        <div class="k">Sockets</div><div class="v">${Math.min(S.usedSockets, S.total)}/${S.total}</div>
+      </div>
+      <div class="stat ${reachedCount ? "good" : ""}">
+        <div class="k">Thresholds (nv${GAME.thresholdLevel})</div><div class="v">${reachedCount}</div>
+      </div>
+      <div class="stat ${S.overCap ? "bad" : (S.distinctActive === GAME.maxActiveAffixes ? "warn" : "")}">
+        <div class="k">Affixes ativos</div><div class="v">${S.distinctActive}/${GAME.maxActiveAffixes}</div>
+      </div>
+    </div>`;
+
+  // ----- linhas de affix -----
+  const rows = S.results.map(r => {
+    const pct = v => Math.min(100, (v / Math.max(r.target, GAME.thresholdLevel)) * 100);
+    const gemsW = pct(r.gemLevels);
+    const wineW = pct(r.gemLevels + r.wineBonus);
+    const thrPct = Math.min(100, (GAME.thresholdLevel / Math.max(r.target, GAME.thresholdLevel)) * 100);
+    const badges = [
+      r.reached ? `<span class="badge thr">threshold</span>` : "",
+      r.wineBonus > 0 ? `<span class="badge wine">wine +${r.wineBonus}</span>` : "",
+      r.short > 0 ? `<span class="badge miss">falta ${r.short}</span>` : "",
+    ].join("");
+    return `<div class="rrow ${r.reached ? "reached" : ""} ${r.short > 0 ? "short" : ""}">
+      <div class="catbar" style="background:${catColor(r.cat)}"></div>
+      <div>
+        <div class="nm">${r.name} ${badges}</div>
+        <div class="meta">#${r.priority} · ${r.socketsUsed} socket(s) · gems +${r.gemLevels}${r.wineBonus ? ` · wine +${r.wineBonus}` : ""}</div>
+        <div class="bar" style="margin-top:7px">
+          <span class="wine" style="width:${wineW}%"></span>
+          <span class="gems" style="width:${gemsW}%"></span>
+          <span class="thr-mark" style="left:${thrPct}%"></span>
+        </div>
+      </div>
+      <div class="num">${r.achieved}<small>alvo ${r.target}</small></div>
+    </div>`;
+  }).join("");
+
+  // ----- mapa de sockets -----
+  const slotMap = `<div class="slots">` + S.slotList.map(sl => {
+    const cap = GAME.slots.find(x => x.id === sl.id).sockets;
+    const filled = sl.gems.map(g =>
+      `<div class="socket filled" style="background:${catColor(g.cat)}" title="${affix(g.affix).name} +${g.level}">${g.level}</div>`).join("");
+    const empties = Array.from({ length: sl.free }, () => `<div class="socket">·</div>`).join("");
+    return `<div class="slot">
+      <div class="sn">${sl.name} <span class="cnt">${cap - sl.free}/${cap}</span></div>
+      <div class="sockets">${filled}${empties}</div>
+    </div>`;
+  }).join("") + `</div>`;
+
+  box.innerHTML = banner + stats + `<div class="res">${rows}</div>` + slotMap;
+}
+
+function renderAll() {
+  $("#mgl-label").textContent = GAME.maxGemLevel;
+  renderClasses();
+  renderCatFilter();
+  renderAffixSelect();
+  renderPicks();
+  renderWine();
+  renderResult();
+}
+
+/* =========================================================================
+   EVENTOS — delegação global; tudo re-renderiza ao vivo.
+   ========================================================================= */
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-cls],[data-cat],[data-del],#btn-add,#btn-share,#btn-reset");
+  if (!t) return;
+
+  if (t.dataset.cls)  { state.cls = t.dataset.cls; sync(); return; }
+  if (t.dataset.cat)  { catFilter = t.dataset.cat; renderCatFilter(); renderAffixSelect(); return; }
+  if (t.dataset.del)  {
+    state.picks = state.picks.filter(p => p.id !== t.dataset.del);
+    if (state.wine.a1 === t.dataset.del) state.wine.a1 = "";
+    if (state.wine.a2 === t.dataset.del) state.wine.a2 = "";
+    sync(); return;
+  }
+  if (t.id === "btn-add")   { addAffix(); return; }
+  if (t.id === "btn-share") { share(); return; }
+  if (t.id === "btn-reset") { resetBuild(); return; }
+});
+
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.id === "wine-tier") { state.wine.tier = t.value; sync(); return; }
+  if (t.id === "wine-a1")   { state.wine.a1 = t.value; sync(); return; }
+  if (t.id === "wine-a2")   { state.wine.a2 = t.value; sync(); return; }
+});
+
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.dataset.lvl) {
+    const p = state.picks.find(x => x.id === t.dataset.lvl);
+    if (p) { p.lvl = clampTarget(t.value); syncHashOnly(); renderResult(); }
+  }
+});
+
+function addAffix() {
+  const id = $("#affix-select").value;
+  if (!id || state.picks.some(p => p.id === id)) return;
+  state.picks.push({ id, lvl: GAME.thresholdLevel });   // default: mirar o threshold
+  sync();
+}
+
+function resetBuild() {
+  state = { cls: GAME.classes[0].id, picks: [], wine: { tier: "none", a1: "", a2: "" } };
+  catFilter = "all";
+  sync();
+}
+
+/* =========================================================================
+   PERSISTÊNCIA — estado no hash da URL (base64 JSON), merge defensivo.
+   ========================================================================= */
+function encodeState() {
+  const compact = {
+    c: state.cls,
+    p: state.picks.map(p => [p.id, p.lvl]),
+    w: [state.wine.tier, state.wine.a1, state.wine.a2],
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+}
+
+function loadFromHash() {
+  const h = location.hash.replace(/^#/, "");
+  if (!h) return;
+  try {
+    const o = JSON.parse(decodeURIComponent(escape(atob(h))));
+    // merge defensivo: ignora o que sumiu entre patches
+    if (o.c && byId(GAME.classes, o.c)) state.cls = o.c;
+    if (Array.isArray(o.p)) {
+      state.picks = o.p
+        .filter(([id]) => !!affix(id))
+        .map(([id, lvl]) => ({ id, lvl: clampTarget(lvl) }));
+    }
+    if (Array.isArray(o.w)) {
+      const [tier, a1, a2] = o.w;
+      state.wine.tier = wineTier(tier) ? tier : "none";
+      state.wine.a1 = state.picks.some(p => p.id === a1) ? a1 : "";
+      state.wine.a2 = state.picks.some(p => p.id === a2) ? a2 : "";
+    }
+  } catch (_) { /* hash inválido: ignora */ }
+}
+
+function syncHashOnly() {
+  history.replaceState(null, "", "#" + encodeState());
+}
+function sync() {           // persiste + re-renderiza tudo
+  syncHashOnly();
+  renderAll();
+}
+
+/* ---------- share / toast ---------- */
+function share() {
+  syncHashOnly();
+  const url = location.href;
+  const done = () => showToast("🔗 Link copiado!");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
+  } else fallbackCopy(url, done);
+}
+function fallbackCopy(text, cb) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); cb(); } catch (_) { showToast("Copie o link da barra de endereços."); }
+  document.body.removeChild(ta);
+}
+let toastTimer;
+function showToast(msg) {
+  const el = $("#toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1900);
+}
+
+/* ---------- boot ---------- */
+loadFromHash();
+renderAll();
+window.addEventListener("hashchange", () => {
+  // permite navegar por links colados sem reload
+  const cur = "#" + encodeState();
+  if (location.hash !== cur) { loadFromHash(); renderAll(); }
+});
+</script>
+</body>
+</html>
