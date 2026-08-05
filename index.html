@@ -263,6 +263,9 @@
   .gemrow .glvl { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; }
   .gemrow.empty { grid-template-columns: auto 1fr; }
   .gemrow.empty .gname { color: var(--text-3); font-weight: 400; }
+  .gemrow.preset .snum { background: var(--accent); color: var(--on-accent); border: none; }
+  .gemrow.preset .glvl { color: var(--accent); }
+  .gemrow.preset .gname::after { content: " · preset"; color: var(--text-3); font-weight: 400; font-size: 10.5px; }
 
   /* ---------- Cobertura por affix ---------- */
   .res { display: flex; flex-direction: column; gap: 8px; }
@@ -273,6 +276,7 @@
   .rrow .nm { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
   .rrow .badge { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; }
   .badge.thr { background: var(--accent); color: var(--on-accent); }
+  .badge.preset { background: transparent; color: var(--accent); border: 1px solid var(--accent-line); }
   .badge.wine{ background: transparent; color: var(--cat-off); border: 1px solid color-mix(in srgb, var(--cat-off) 40%, transparent); }
   .badge.miss{ background: var(--bad-bg); color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
   .rrow .meta { font-size: 11px; color: var(--text-3); margin-top: 3px; }
@@ -578,28 +582,32 @@ function solve() {
   const D = results.reduce((s, r) => s + r.socketsNeeded, 0);   // sockets necessários
 
   // --- 2. subconjunto de slots mais barato que cubra D sockets ---
+  // preset = affix que a peça já vem com (ocupa 1 slot → 1 socket de gema a menos,
+  // e dá +1 grátis nesse affix). gemSockets = sockets livres para gemas.
   const slots = GAME.slots.map(sl => ({
     id: sl.id, name: sl.name, sockets: sl.sockets,
+    preset: sl.preset || null,
+    gemSockets: sl.sockets - (sl.preset ? 1 : 0),
     mid: sl.market ? sl.market.mid : null,
     vog: sl.market ? sl.market.vog : null,
     lo:  sl.market ? sl.market.lo  : null,
     hi:  sl.market ? sl.market.hi  : null,
   }));
-  const totalSocketsAll = slots.reduce((s, sl) => s + sl.sockets, 0);
+  const totalSocketsAll = slots.reduce((s, sl) => s + sl.gemSockets, 0);
   const n = slots.length;
 
   let chosen;
   if (state.mode === "full") {
     // BUILD COMPLETA: compra a peça mais barata de CADA um dos 8 slots.
-    chosen = slots.map(sl => ({ ...sl, free: sl.sockets, gems: [] }));
+    chosen = slots.map(sl => ({ ...sl, free: sl.gemSockets, gems: [] }));
   } else {
-    // MÍNIMO: subconjunto de slots mais barato cujos sockets cubram D.
+    // MÍNIMO: subconjunto de slots mais barato cujos gemSockets cubram D.
     let best = { mask: 0, sockets: 0, knownCost: 0, unpriced: 0, pieces: 0, waste: 0 };
     let bestFound = (D === 0);   // D=0 → conjunto vazio já é ótimo
     for (let mask = 1; mask < (1 << n); mask++) {
       let sockets = 0, knownCost = 0, unpriced = 0, pieces = 0;
       for (let i = 0; i < n; i++) if (mask & (1 << i)) {
-        const sl = slots[i]; sockets += sl.sockets; pieces++;
+        const sl = slots[i]; sockets += sl.gemSockets; pieces++;
         if (sl.mid == null) unpriced++; else knownCost += sl.mid;
       }
       if (sockets < D) continue;
@@ -607,10 +615,21 @@ function solve() {
       if (!bestFound || cheaperPlan(cand, best)) { best = cand; bestFound = true; }
     }
     chosen = [];
-    for (let i = 0; i < n; i++) if (best.mask & (1 << i)) chosen.push({ ...slots[i], free: slots[i].sockets, gems: [] });
+    for (let i = 0; i < n; i++) if (best.mask & (1 << i)) chosen.push({ ...slots[i], free: slots[i].gemSockets, gems: [] });
   }
   // ordena por preço: baratas primeiro (recebem as gems), sem-preço ao fim
   chosen.sort((a, b) => (a.mid == null) - (b.mid == null) || (a.mid || 0) - (b.mid || 0));
+
+  // --- presets das peças compradas: +1 grátis no affix (se for desejado) ---
+  const wanted = new Set(state.picks.map(p => p.id));
+  const presetBy = {};
+  for (const c of chosen) if (c.preset && wanted.has(c.preset)) presetBy[c.preset] = (presetBy[c.preset] || 0) + 1;
+  for (const r of results) {
+    const avail = Math.max(0, r.target - r.wineBonus);     // pontos além da wine
+    r.presetPts = Math.min(presetBy[r.id] || 0, avail);    // preset não passa do necessário
+    r.demand = Math.max(0, avail - r.presetPts);           // resto vem de gemas
+    r.socketsNeeded = Math.ceil(r.demand / MGL);
+  }
 
   // --- 3. alocar gems (por prioridade do affix) nas peças mais baratas ---
   let ptr = 0;
@@ -623,7 +642,7 @@ function solve() {
       sl.gems.push({ affix: r.id, cat: r.cat, level: lvlHere });
       sl.free--; r.socketsUsed++; r.gemLevels += lvlHere; rem -= lvlHere; need--;
     }
-    r.achieved = r.gemLevels + r.wineBonus;
+    r.achieved = r.gemLevels + r.wineBonus + r.presetPts;
     r.short = Math.max(0, r.target - r.achieved);
     r.reached = r.achieved >= GAME.thresholdLevel;
   }
@@ -639,7 +658,7 @@ function solve() {
   const distinctActive = state.picks.length;
 
   // --- 4. custo de GEMAS: cada affix precisa de `demand` gemas (+1 cada) ---
-  // (sem presets ainda — todos os pontos vêm de gemas compradas)
+  // (pontos de preset já foram descontados de r.demand acima)
   let gemsCost = 0, gemUnknown = 0, gemCount = 0;
   for (const r of results) {
     const g = gemFor(r.id);
@@ -653,10 +672,14 @@ function solve() {
   }
   const grandTotal = knownCost + gemsCost;   // peças + gemas (com preço)
 
+  // presets efetivamente usados (para exibição)
+  const presetUsed = results.reduce((s, r) => s + (r.presetPts || 0), 0);
+  const gemDemand  = results.reduce((s, r) => s + r.socketsNeeded, 0);  // sockets de gema (pós-preset)
+
   return {
     results, chosen, boughtPieces, usedPieces, MGL, mode: state.mode,
-    D, totalSocketsAll,
-    feasibleSockets: D <= totalSocketsAll,
+    D: gemDemand, totalSocketsAll, presetUsed,
+    feasibleSockets: gemDemand <= totalSocketsAll,
     feasible: results.every(r => r.short === 0),
     knownCost, costLo, costHi, vogSum, unpricedUsed,
     gemsCost, gemUnknown, gemCount, grandTotal,
@@ -829,13 +852,21 @@ function renderResult() {
     </div>`;
   }).join("") + `</div>` : "";
 
-  // ----- lista de compras: cada item, com as gems por socket -----
+  // ----- lista de compras: cada item, com preset + gems por socket -----
   const shop = S.boughtPieces.length ? `<div class="shop">` + S.boughtPieces.map((pc, pi) => {
     const priceMain = pc.mid != null ? `~${pc.mid} g` : `s/ preço`;
     const priceSub  = pc.mid != null ? `${pc.lo}–${pc.hi} g` : `sem amostra`;
-    const noGem = pc.gems.length === 0;
-    // uma linha por socket: gem alocada ou socket livre
-    const gemRows = Array.from({ length: pc.sockets }, (_, i) => {
+    const noGem = pc.gems.length === 0 && !pc.preset;
+    // linha de preset (affix que a peça já traz), se houver
+    const pa = pc.preset ? affix(pc.preset) : null;
+    const presetRow = pa ? `<div class="gemrow preset">
+      <span class="snum">P</span>
+      <span class="gdot" style="background:${catColor(pa.cat)}"></span>
+      <span class="gname">${pa.name}</span>
+      <span class="glvl">preset +1</span>
+    </div>` : "";
+    // uma linha por socket de gema (livre = gemSockets)
+    const gemRows = Array.from({ length: pc.gemSockets }, (_, i) => {
       const g = pc.gems[i];
       if (g) {
         const a = affix(g.affix);
@@ -856,7 +887,7 @@ function renderResult() {
         <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name}${noGem ? `<span class="basetag">base</span>` : ""}</div>
         <div class="sprice">${priceMain}<small>${priceSub}</small></div>
       </div>
-      <div class="gemlist">${gemRows}</div>
+      <div class="gemlist">${presetRow}${gemRows}</div>
     </div>`;
   }).join("") + `</div>` : "";
 
@@ -868,6 +899,7 @@ function renderResult() {
     const thrPct = Math.min(100, (GAME.thresholdLevel / Math.max(r.target, GAME.thresholdLevel)) * 100);
     const badges = [
       r.reached ? `<span class="badge thr">threshold</span>` : "",
+      r.presetPts > 0 ? `<span class="badge preset">preset +${r.presetPts}</span>` : "",
       r.wineBonus > 0 ? `<span class="badge wine">wine +${r.wineBonus}</span>` : "",
       r.short > 0 ? `<span class="badge miss">falta ${r.short}</span>` : "",
     ].join("");
@@ -875,7 +907,7 @@ function renderResult() {
       <div class="catbar" style="background:${catColor(r.cat)}"></div>
       <div>
         <div class="nm">${r.name} ${badges}</div>
-        <div class="meta">#${r.priority} · ${r.socketsUsed} socket(s) · gems +${r.gemLevels}${r.wineBonus ? ` · wine +${r.wineBonus}` : ""}</div>
+        <div class="meta">#${r.priority} · ${r.socketsUsed} gema(s) +${r.gemLevels}${r.presetPts ? ` · preset +${r.presetPts}` : ""}${r.wineBonus ? ` · wine +${r.wineBonus}` : ""}</div>
         <div class="bar" style="margin-top:7px">
           <span class="wine" style="width:${wineW}%"></span>
           <span class="gems" style="width:${gemsW}%"></span>
