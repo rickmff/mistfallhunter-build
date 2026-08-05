@@ -228,6 +228,18 @@
   .mtab.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
   @media (prefers-color-scheme: dark) { .mtab.on { background: var(--surface-2); } }
 
+  /* ---------- Gemas a comprar ---------- */
+  .gemshop { display: flex; flex-direction: column; gap: 6px; }
+  .gembuy { display: grid; grid-template-columns: auto auto 1fr auto auto; align-items: center; gap: 9px; padding: 9px 12px; background: var(--surface); border: 1px solid var(--border-2); border-radius: var(--r-sm); font-size: 12.5px; }
+  .gembuy.unk { border-style: dashed; opacity: .8; }
+  .gembuy .gcount { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 13px; }
+  .gembuy .gdot { width: 9px; height: 9px; border-radius: 50%; }
+  .gembuy .gbname { font-weight: 600; color: var(--text); }
+  .gembuy .gbmat { font-size: 10px; font-weight: 600; color: var(--text-3); background: var(--inset); border-radius: 999px; padding: 2px 8px; }
+  .gembuy .gbprice { font-family: var(--mono); font-weight: 700; font-size: 12px; color: var(--text-2); text-align: right; white-space: nowrap; }
+  .gembuy .gbprice small { display: block; font-size: 10px; font-weight: 700; color: var(--accent); }
+  .gembuy.unk .gbprice small { color: var(--text-3); font-weight: 500; }
+
   .shopc.base { background: var(--surface-2); border-style: dashed; }
   .basetag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); background: var(--inset); border: 1px solid var(--border); padding: 1px 6px; border-radius: 999px; }
 
@@ -350,7 +362,7 @@
     <div>
       <div class="card">
         <h2>Plano de compra (menor custo)</h2>
-        <p class="sub"><b>Build completa</b> = 1 peça por slot (as 8 mais baratas), com as gems nos sockets mais baratos. <b>Só cobrir affixes</b> = o mínimo de peças. Preços da Auction House; cada socket entrega até <span id="mgl-label"></span> nível(is).</p>
+        <p class="sub">Custo total = <b>peças + gemas</b>. Cada gema dá <b>+<span id="mgl-label"></span></b> no affix, então nível 5 = 5 gemas. <b>Build completa</b> = 1 peça por slot; <b>Só cobrir affixes</b> = mínimo de peças. Preços da Auction House.</p>
         <div id="result"></div>
       </div>
     </div>
@@ -358,7 +370,7 @@
 
   <footer class="note">
     Affixes e sistema de Wine conferidos pós-lançamento (ago/2026) em <b>mistfallhunters.wiki</b> e <b>mistfallhunter.cc</b>. Threshold é "geralmente nível 5 ou 6" — ajuste <code>GAME.thresholdLevel</code> se o jogo confirmar 6.<br/>
-    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Necklace/Ring somam bases de Physical Damage + Physical Resistance; Weapon = Sword & Shield. Cada gema dá <b>+1</b> no affix (<code>maxGemLevel: 1</code>) — nível 5 exige 5 sockets, por isso a Victory Wine é essencial. A magnitude da Wine segue a confirmar no jogo.
+    Preços de peças em <code>GAME.slots[].market</code> e de gemas em <code>GAME.gemPrices</code> (snapshot da Auction House). Necklace/Ring somam bases de Physical Damage + Physical Resistance; Weapon = Sword & Shield. Cada gema dá <b>+1</b> no affix (<code>maxGemLevel: 1</code>) — nível 5 exige 5 sockets, por isso a Victory Wine é essencial. A magnitude da Wine segue a confirmar no jogo.
   </footer>
 </div>
 
@@ -460,6 +472,41 @@ const GAME = {
     { id: "swift",       name: "Swift",        cat: "utility", desc: "Mais velocidade agachado, mirando e conjurando." },
   ],
 
+  // Gemas por affix — MENOR preço observado nos prints da Auction House (Affix Gem),
+  // já mapeado nome-da-gema → affix via mistfalldb + correspondência de nome.
+  // { name: gema mais barata, mat: material, price: gold por gema (+1 no affix) }.
+  // Cada affix nível N precisa de N gemas. Affix sem entrada = gema ainda não
+  // confirmada (Valor, Aegis, Stoic, …) → o app mostra "gema s/ preço".
+  gemPrices: {
+    fervid:      { name: "Fervor Amethyst",    mat: "Amethyst", price: 57 },
+    wrath:       { name: "Wrath Moonstone",    mat: "Moonstone", price: 61 },
+    smiting:     { name: "Crushing Peridot",   mat: "Peridot",  price: 55 },
+    burst:       { name: "Blast Moonstone",    mat: "Moonstone", price: 62 },
+    strife:      { name: "Carnage Onyx",       mat: "Onyx",     price: 64 },
+    ranged:      { name: "Ranged Power Amethyst", mat: "Amethyst", price: 91 },
+    skypiercer:  { name: "Skyshatter Amethyst",mat: "Amethyst", price: 45 },
+    bulwark:     { name: "Steel Bulwark Agate",mat: "Agate",    price: 54 },
+    unyielding:  { name: "Unyielding Amethyst",mat: "Amethyst", price: 56 },
+    resilience:  { name: "Resilience Amethyst",mat: "Amethyst", price: 82 },
+    tenacious:   { name: "Tenacity Agate",     mat: "Agate",    price: 86 },
+    spiritshield:{ name: "Spellshield Moonstone", mat: "Moonstone", price: 61 },
+    brotherhood: { name: "Brotherhood Onyx",   mat: "Onyx",     price: 45 },
+    eloquence:   { name: "Persuasive Peridot", mat: "Peridot",  price: 138 },
+    seamless:    { name: "Flawless Peridot",   mat: "Peridot",  price: 98 },
+    seeker:      { name: "Pursuit Amethyst",   mat: "Amethyst", price: 59 },
+    vitality:    { name: "Vitality Amethyst",  mat: "Amethyst", price: 129 },
+    elusive:     { name: "Agile Peridot",      mat: "Peridot",  price: 147 },
+    curse:       { name: "Curseward Amethyst", mat: "Amethyst", price: 45 },
+    focused:     { name: "Focus Onyx",         mat: "Onyx",     price: 95 },
+    blessing:    { name: "Blessed Peridot",    mat: "Peridot",  price: 45 },
+    creation:    { name: "Artifice Moonstone", mat: "Moonstone", price: 55 },
+    wealth:      { name: "Fortune Peridot",    mat: "Peridot",  price: 45 },
+    deft:        { name: "Deft Peridot",       mat: "Peridot",  price: 45 },
+    swift:       { name: "Haste Moonstone",    mat: "Moonstone", price: 45 },
+    distantward: { name: "Ranged Ward Onyx",   mat: "Onyx",     price: 56 },
+    // sem gema confirmada: valor, aegis, stoic, fervor, ironhelmet, ethereal.
+  },
+
   // Victory Wine — sistema PÓS-LANÇAMENTO (ago/2026): concede exatamente 2 affixes
   // por run, travados ao confirmar até extrair/morrer. ⚠️ Os nomes de tier e os
   // valores numéricos NÃO são confirmados publicamente — a wiki alerta contra
@@ -495,6 +542,7 @@ let catFilter = "all";              // filtro do dropdown de adição
 const $  = (s, r=document) => r.querySelector(s);
 const byId = (list, id) => list.find(x => x.id === id);
 const affix = id => byId(GAME.affixes, id);
+const gemFor = id => GAME.gemPrices[id] || null;   // gema mais barata do affix (ou null)
 const wineTier = id => byId(GAME.wineTiers, id) || GAME.wineTiers[0];
 const catColor = c => (CAT[c] || {}).color || "var(--ink-faint)";
 const totalSockets = () => GAME.slots.reduce((s, sl) => s + sl.sockets, 0);
@@ -590,12 +638,28 @@ function solve() {
   const unpricedUsed = boughtPieces.filter(c => c.mid == null).length;
   const distinctActive = state.picks.length;
 
+  // --- 4. custo de GEMAS: cada affix precisa de `demand` gemas (+1 cada) ---
+  // (sem presets ainda — todos os pontos vêm de gemas compradas)
+  let gemsCost = 0, gemUnknown = 0, gemCount = 0;
+  for (const r of results) {
+    const g = gemFor(r.id);
+    r.gemPts  = r.demand;                 // nº de gemas para este affix
+    r.gemName = g ? g.name : null;
+    r.gemMat  = g ? g.mat  : null;
+    r.gemUnit = g ? g.price : null;
+    r.gemSub  = (g && r.gemPts) ? g.price * r.gemPts : 0;
+    gemCount += r.gemPts;
+    if (r.gemPts > 0 && !g) gemUnknown++; else gemsCost += r.gemSub;
+  }
+  const grandTotal = knownCost + gemsCost;   // peças + gemas (com preço)
+
   return {
     results, chosen, boughtPieces, usedPieces, MGL, mode: state.mode,
     D, totalSocketsAll,
     feasibleSockets: D <= totalSocketsAll,
     feasible: results.every(r => r.short === 0),
     knownCost, costLo, costHi, vogSum, unpricedUsed,
+    gemsCost, gemUnknown, gemCount, grandTotal,
     distinctActive,
     overCap: distinctActive > GAME.maxActiveAffixes,
     overCapBy: Math.max(0, distinctActive - GAME.maxActiveAffixes),
@@ -730,12 +794,11 @@ function renderResult() {
     banner += `<div class="banner ok">✔ Plano mínimo — ${S.usedPieces.length} peça(s) cobrem os affixes; ${S.D}/${S.totalSocketsAll} sockets usados.</div>`;
   }
 
-  // ----- stats: CUSTO em destaque -----
+  // ----- stats: CUSTO TOTAL (peças + gemas) em destaque -----
   const reachedCount = S.results.filter(r => r.reached).length;
+  const anyUnknown = S.unpricedUsed || S.gemUnknown;
   const costStr = S.boughtPieces.length
-    ? (S.unpricedUsed
-        ? `≥${S.knownCost}<small>+${S.unpricedUsed} slot(s) s/ preço</small>`
-        : `~${S.knownCost}<small>${S.costLo}–${S.costHi} g</small>`)
+    ? `${anyUnknown ? "≥" : "~"}${S.grandTotal}<small>peças ${S.knownCost} + gemas ${S.gemsCost}</small>`
     : `0`;
   const stats = `
     <div class="summary">
@@ -743,23 +806,33 @@ function renderResult() {
         <div class="k">Custo total</div><div class="v">${costStr}</div>
       </div>
       <div class="stat">
-        <div class="k">valueOfGold Σ</div><div class="v">${S.vogSum || 0}</div>
+        <div class="k">Peças · gear</div><div class="v">${S.knownCost}<small>${S.boughtPieces.length} itens${S.unpricedUsed ? ` · +${S.unpricedUsed} s/ preço` : ""}</small></div>
       </div>
       <div class="stat">
-        <div class="k">Itens a comprar</div><div class="v">${S.boughtPieces.length}</div>
+        <div class="k">Gemas</div><div class="v">${S.gemsCost}<small>${S.gemCount} un.${S.gemUnknown ? ` · +${S.gemUnknown} s/ preço` : ""}</small></div>
       </div>
       <div class="stat ${reachedCount ? "good" : ""}">
         <div class="k">Thresholds (nv${GAME.thresholdLevel})</div><div class="v">${reachedCount}</div>
       </div>
     </div>`;
 
+  // ----- gemas a comprar (por affix; cada gema = +1) -----
+  const gemBuys = S.results.filter(r => r.gemPts > 0);
+  const gems = gemBuys.length ? `<div class="gemshop">` + gemBuys.map(r => {
+    const known = r.gemUnit != null;
+    return `<div class="gembuy ${known ? "" : "unk"}">
+      <span class="gcount">${r.gemPts}×</span>
+      <span class="gdot" style="background:${catColor(r.cat)}"></span>
+      <span class="gbname">${known ? r.gemName : `${r.name} — gema não mapeada`}</span>
+      ${known ? `<span class="gbmat">${r.gemMat}</span>` : ""}
+      <span class="gbprice">${known ? `${r.gemUnit}g<small>= ${r.gemSub}g</small>` : `<small>s/ preço</small>`}</span>
+    </div>`;
+  }).join("") + `</div>` : "";
+
   // ----- lista de compras: cada item, com as gems por socket -----
   const shop = S.boughtPieces.length ? `<div class="shop">` + S.boughtPieces.map((pc, pi) => {
     const priceMain = pc.mid != null ? `~${pc.mid} g` : `s/ preço`;
     const priceSub  = pc.mid != null ? `${pc.lo}–${pc.hi} g` : `sem amostra`;
-    const pill = pc.vog != null
-      ? `<span class="vpill" style="background:${bandColor(pc.vog)}">vog ${pc.vog}</span>`
-      : `<span class="vpill unk">vog ?</span>`;
     const noGem = pc.gems.length === 0;
     // uma linha por socket: gem alocada ou socket livre
     const gemRows = Array.from({ length: pc.sockets }, (_, i) => {
@@ -780,7 +853,7 @@ function renderResult() {
     }).join("");
     return `<div class="shopc ${noGem ? "base" : ""}">
       <div class="shead">
-        <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name} ${pill}${noGem ? `<span class="basetag">base</span>` : ""}</div>
+        <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name}${noGem ? `<span class="basetag">base</span>` : ""}</div>
         <div class="sprice">${priceMain}<small>${priceSub}</small></div>
       </div>
       <div class="gemlist">${gemRows}</div>
@@ -813,21 +886,16 @@ function renderResult() {
     </div>`;
   }).join("");
 
-  // ----- legenda da escala valueOfGold -----
-  const legend = `<div class="vlegend">` + GAME.valueBands.map((b, i) => {
-    const lo = i === 0 ? 0 : GAME.valueBands[i - 1].max + 1;
-    const range = b.max === Infinity ? `${lo}+` : `${lo}–${b.max}`;
-    return `<span class="vchip"><span class="dot" style="background:${b.color}"></span>vog ${b.vog} · ${b.label} <small>${range} g</small></span>`;
-  }).join("") + `</div>`;
-
   const shopLabel = S.mode === "full"
     ? `🛒 Lista de compras — build completa (${S.boughtPieces.length} itens)`
     : `🛒 Lista de compras — mínimo (${S.boughtPieces.length} itens)`;
 
+  const gemLabel = `🔷 Gemas a comprar — ${S.gemCount} un.${S.gemUnknown ? ` (+${S.gemUnknown} affix s/ preço)` : ` · ${S.gemsCost} g`}`;
+
   box.innerHTML = modes + banner + stats
     + `<div class="section-h">${shopLabel}</div>` + shop
-    + `<div class="section-h">Cobertura dos affixes</div><div class="res">${rows}</div>`
-    + legend;
+    + (gems ? `<div class="section-h">${gemLabel}</div>` + gems : "")
+    + `<div class="section-h">Cobertura dos affixes</div><div class="res">${rows}</div>`;
 }
 
 function renderAll() {
