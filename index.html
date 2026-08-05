@@ -266,6 +266,9 @@
   .gemrow.preset .snum { background: var(--accent); color: var(--on-accent); border: none; }
   .gemrow.preset .glvl { color: var(--accent); }
   .gemrow.preset .gname::after { content: " · preset"; color: var(--text-3); font-weight: 400; font-size: 10.5px; }
+  .presetpick { display: flex; align-items: center; gap: 7px; margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--text-3); }
+  .presetpick span { text-transform: uppercase; letter-spacing: .04em; }
+  .presetpick select { flex: 1 1 auto; padding: 5px 8px; font-size: 12px; }
 
   /* ---------- Cobertura por affix ---------- */
   .res { display: flex; flex-direction: column; gap: 8px; }
@@ -539,6 +542,7 @@ let state = {
   picks: [],                        // [{ id, lvl }]
   wine: { tier: "none", a1: "", a2: "" },
   mode: "full",                     // "full" = build completa (8 slots) | "min" = só cobrir affixes
+  presets: {},                      // { slotId: affixId } — affix já presetado naquela peça
 };
 let catFilter = "all";              // filtro do dropdown de adição
 
@@ -584,15 +588,18 @@ function solve() {
   // --- 2. subconjunto de slots mais barato que cubra D sockets ---
   // preset = affix que a peça já vem com (ocupa 1 slot → 1 socket de gema a menos,
   // e dá +1 grátis nesse affix). gemSockets = sockets livres para gemas.
-  const slots = GAME.slots.map(sl => ({
+  const slots = GAME.slots.map(sl => {
+    const preset = state.presets[sl.id] || sl.preset || null;   // escolhido pelo usuário
+    return {
     id: sl.id, name: sl.name, sockets: sl.sockets,
-    preset: sl.preset || null,
-    gemSockets: sl.sockets - (sl.preset ? 1 : 0),
+    preset,
+    gemSockets: sl.sockets - (preset ? 1 : 0),
     mid: sl.market ? sl.market.mid : null,
     vog: sl.market ? sl.market.vog : null,
     lo:  sl.market ? sl.market.lo  : null,
     hi:  sl.market ? sl.market.hi  : null,
-  }));
+    };
+  });
   const totalSocketsAll = slots.reduce((s, sl) => s + sl.gemSockets, 0);
   const n = slots.length;
 
@@ -882,12 +889,15 @@ function renderResult() {
         <span class="gname">— socket livre —</span>
       </div>`;
     }).join("");
+    const presetOpts = `<option value="">nenhum</option>` + state.picks.map(p =>
+      `<option value="${p.id}" ${pc.preset === p.id ? "selected" : ""}>${affix(p.id).name}</option>`).join("");
     return `<div class="shopc ${noGem ? "base" : ""}">
       <div class="shead">
         <div class="stitle"><span class="pnum">${pi + 1}</span>${pc.name}${noGem ? `<span class="basetag">base</span>` : ""}</div>
         <div class="sprice">${priceMain}<small>${priceSub}</small></div>
       </div>
       <div class="gemlist">${presetRow}${gemRows}</div>
+      <div class="presetpick"><span>preset:</span><select data-preset="${pc.id}">${presetOpts}</select></div>
     </div>`;
   }).join("") + `</div>` : "";
 
@@ -966,6 +976,11 @@ document.addEventListener("change", (e) => {
   if (t.id === "wine-tier") { state.wine.tier = t.value; sync(); return; }
   if (t.id === "wine-a1")   { state.wine.a1 = t.value; sync(); return; }
   if (t.id === "wine-a2")   { state.wine.a2 = t.value; sync(); return; }
+  if (t.dataset.preset)     {
+    if (t.value) state.presets[t.dataset.preset] = t.value;
+    else delete state.presets[t.dataset.preset];
+    sync(); return;
+  }
 });
 
 document.addEventListener("input", (e) => {
@@ -984,7 +999,7 @@ function addAffix() {
 }
 
 function resetBuild() {
-  state = { cls: GAME.classes[0].id, picks: [], wine: { tier: "none", a1: "", a2: "" }, mode: "full" };
+  state = { cls: GAME.classes[0].id, picks: [], wine: { tier: "none", a1: "", a2: "" }, mode: "full", presets: {} };
   catFilter = "all";
   sync();
 }
@@ -998,6 +1013,7 @@ function encodeState() {
     p: state.picks.map(p => [p.id, p.lvl]),
     w: [state.wine.tier, state.wine.a1, state.wine.a2],
     m: state.mode,
+    pr: state.presets,
   };
   return btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
 }
@@ -1021,6 +1037,11 @@ function loadFromHash() {
       state.wine.a2 = state.picks.some(p => p.id === a2) ? a2 : "";
     }
     if (o.m === "full" || o.m === "min") state.mode = o.m;
+    if (o.pr && typeof o.pr === "object") {
+      state.presets = {};
+      for (const [slot, aff] of Object.entries(o.pr))
+        if (byId(GAME.slots, slot) && affix(aff)) state.presets[slot] = aff;
+    }
   } catch (_) { /* hash inválido: ignora */ }
 }
 
