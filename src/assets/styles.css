@@ -1,0 +1,120 @@
+/* =========================================================================
+   Único CSS custom do projeto: o resto do estilo sai de componentes e
+   utility classes do Vuetify. Aqui ficam só as coisas que o framework
+   não cobre — família de fonte e dois enfeites de 3px.
+   ========================================================================= */
+
+:root {
+  /* Vuetify 4 lê a fonte destas variáveis (default: Roboto). */
+  --v-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --v-font-heading: var(--v-font-body);
+}
+
+/* Números (gold, níveis, contagens) em monoespaçada tabular. */
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barrinha vertical de categoria à esquerda das linhas. */
+.cat-bar {
+  flex: 0 0 auto;
+  width: 3px;
+  border-radius: 3px;
+  align-self: stretch;
+}
+
+/* =========================================================================
+   GRADE DE EQUIPAMENTO — as 8 peças dispostas como o inventário do jogo:
+   arma ocupando a linha inteira, o resto em pares, botas sozinhas.
+   ========================================================================= */
+.eq-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'weapon weapon'
+    'helm   chest'
+    'gloves pants'
+    'boots  .'
+    'amulet ring';
+}
+
+@media (max-width: 599px) {
+  .eq-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'weapon' 'helm' 'chest' 'gloves' 'pants' 'boots' 'amulet' 'ring';
+  }
+}
+
+/* Espaço da "arte" da peça — o ícone do slot, discreto. */
+.eq-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  opacity: 0.45;
+}
+
+/* Slot que o plano não compra: presente na grade, mas apagado. */
+.eq-slot--off {
+  opacity: 0.5;
+}
+
+.eq-slot--off .eq-art {
+  opacity: 0.3;
+}
+
+/* =========================================================================
+   PIPS DE NÍVEL — a barra de rank do affix é também o controle do alvo.
+   A cor vem do `text-<categoria>` no container (currentColor).
+   ========================================================================= */
+.pip {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 6px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  background: currentColor;
+  transition: opacity 0.12s;
+}
+
+.pip--gem {
+  opacity: 1;
+} /* rank pago com gema */
+.pip--free {
+  opacity: 0.45;
+} /* rank de graça: preset ou wine */
+.pip--off {
+  opacity: 0.14;
+} /* acima do alvo */
+
+.pip--miss {
+  background: rgb(var(--v-theme-error));
+  opacity: 0.4;
+} /* falta pro alvo */
+
+.pip:hover {
+  outline: 1px solid currentColor;
+  outline-offset: 1px;
+}
+
+/* Tick no pip do threshold — o nível que destrava o bônus extra. */
+.pip--thr::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  right: -3px;
+  width: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+/* Linhas da lista de affixes, separadas sem virar um card cada. */
+.affix-row + .affix-row {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
