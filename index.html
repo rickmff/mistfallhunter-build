@@ -358,7 +358,7 @@
 
   <footer class="note">
     Affixes e sistema de Wine conferidos pós-lançamento (ago/2026) em <b>mistfallhunters.wiki</b> e <b>mistfallhunter.cc</b>. Threshold é "geralmente nível 5 ou 6" — ajuste <code>GAME.thresholdLevel</code> se o jogo confirmar 6.<br/>
-    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Necklace/Ring somam bases de Physical Damage + Physical Resistance; Weapon = Sword & Shield. <code>GAME.maxGemLevel</code> e a magnitude da Wine seguem a confirmar no jogo.
+    Preços/<code>valueOfGold</code> = snapshot da Auction House (tier raro); atualize <code>GAME.slots[].market</code>. Necklace/Ring somam bases de Physical Damage + Physical Resistance; Weapon = Sword & Shield. Cada gema dá <b>+1</b> no affix (<code>maxGemLevel: 1</code>) — nível 5 exige 5 sockets, por isso a Victory Wine é essencial. A magnitude da Wine segue a confirmar no jogo.
   </footer>
 </div>
 
@@ -373,7 +373,7 @@ const GAME = {
   // --- Parâmetros globais ---
   thresholdLevel:   5,   // nível que desbloqueia o bônus extra (objetivo central)
   maxActiveAffixes: 5,   // máximo de affixes distintos ativos ao mesmo tempo
-  maxGemLevel:      5,    // quanto de nível UMA gem/socket entrega  (⚠️ incerto — pode ser 1)
+  maxGemLevel:      1,    // cada gema/socket entrega +1 no affix (confirmado pós-launch)
   maxTarget:        9,    // nível-alvo máximo selecionável por affix
 
   classes: [
