@@ -4,9 +4,8 @@ import { createVuetify } from 'vuetify'
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg'
 import {
   mdiCartOutline,
-  mdiChevronDown,
-  mdiChevronUp,
   mdiCircle,
+  mdiDragVertical,
   mdiClose,
   mdiHandBackRight,
   mdiHanger,
@@ -94,8 +93,7 @@ export const vuetifyOptions = {
       cart: mdiCartOutline,
       gem: mdiHexagonMultipleOutline,
       gold: mdiSack,
-      chevronDown: mdiChevronDown,
-      chevronUp: mdiChevronUp,
+      drag: mdiDragVertical,
 
       // categoria de affix — o mesmo ícone do painel direito e dos sockets
       offense: mdiSword,
@@ -118,8 +116,10 @@ export const vuetifyOptions = {
   theme: { defaultTheme: 'system', themes: { light, dark } },
 
   // Defaults globais: evitam repetir as mesmas props em cada componente.
+  // Nada de card com borda: a separação vem do fundo — página `background`,
+  // painel `surface`, peça/linha `surface-light`, cada degrau mais claro.
   defaults: {
-    VCard: { variant: 'outlined', rounded: 'lg' },
+    VCard: { variant: 'flat', rounded: 'lg' },
     VSheet: { rounded: 'lg' },
     VBtn: { variant: 'outlined', class: 'text-none' },
     VSelect: { variant: 'outlined', density: 'compact', hideDetails: true },

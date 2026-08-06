@@ -1,29 +1,35 @@
 <script setup>
 import { computed } from 'vue'
-import { affix, catIcon, catTheme, gemFor, presetPremiumFor, slotIcon } from '../utils/game.js'
+import { affix, catIcon, catTheme, gemFor, gemForShape, slotIcon } from '../utils/game.js'
+import { shapeLabel } from '../utils/shapes.js'
 import { verdictFor } from '../utils/verdict.js'
 import { useBuild } from '../composables/useBuild.js'
+import SocketShape from './SocketShape.vue'
 
-/* Uma célula da grade de equipamento: a peça daquele slot como o jogo mostra —
-   nome, arte, e os sockets como selinhos no rodapé. O raio-x (preset + veredito)
-   fica escondido até o botão "Detalhes" do painel direito. */
+/* Uma célula da grade de equipamento: a LISTAGEM que o plano manda comprar
+   naquele slot. Compacta de propósito — as 8 peças têm de caber na tela sem
+   rolagem. Não há escolha de preset aqui: o solver já pegou a listagem mais
+   barata do catálogo real da AH.
+
+   Cada linha do rodapé é um dos 2 slots da peça e responde três coisas:
+     - QUAL affix ocupa (nome, não um rótulo genérico de "gema")
+     - o FORMATO do socket (retângulo/triângulo/…, o "Slot Type" da AH)
+     - se o affix veio de FÁBRICA (preset) ou é gema que o plano encaixa */
 const props = defineProps({
   slotDef: { type: Object, required: true },
   piece: { type: Object, default: null }, // null = o plano não compra este slot
 })
 
-const { state, plan, showDetails, setPreset } = useBuild()
+const { plan } = useBuild()
 
-// "Arma · Sword & Shield" → título + subtítulo, pra caber na célula
-const label = computed(() => {
-  const [main, ...rest] = props.slotDef.name.split('·')
-  return { main: main.trim(), sub: rest.join('·').trim() }
-})
+// "Arma · Sword & Shield" → só o começo serve de rótulo quando não há peça
+const slotLabel = computed(() => props.slotDef.name.split('·')[0].trim())
 
-/** Um selinho por slot da peça: o preset primeiro, depois os sockets de gema. */
-const badges = computed(() => {
+const sockets = computed(() => {
   const pc = props.piece
-  if (!pc) return Array.from({ length: props.slotDef.sockets }, () => ({ kind: 'empty' }))
+  if (!pc) {
+    return Array.from({ length: props.slotDef.sockets }, () => ({ kind: 'free', name: 'socket livre' }))
+  }
 
   const out = []
   if (pc.preset) {
@@ -31,128 +37,119 @@ const badges = computed(() => {
     out.push({
       kind: 'preset',
       cat: a ? a.cat : 'utility',
-      title: `${a ? a.name : pc.preset} · preset${pc.presetUseful ? '' : ' (sem efeito)'}`,
+      name: a ? a.name : pc.preset,
+      note: pc.presetUseful ? 'de fábrica' : 'de fábrica · sem efeito',
       useful: pc.presetUseful,
     })
   }
+  const shapes = pc.shapes || []
   for (let i = 0; i < pc.gemSockets; i++) {
-    const g = pc.gems[i]
+    // a gema guarda em que socket entrou (o formato manda), então é busca por
+    // índice — não "o i-ésimo da lista"
+    const g = pc.gems.find((x) => x.socket === i) || (pc.gems[i] && pc.gems[i].socket == null ? pc.gems[i] : null)
+    const shape = shapes[i] || null
     if (!g) {
-      out.push({ kind: 'empty', title: 'socket livre' })
+      out.push({ kind: 'free', shape, name: 'socket livre', note: shapeLabel(shape) })
       continue
     }
     const a = affix(g.affix)
-    out.push({ kind: 'gem', cat: g.cat, title: `${a ? a.name : g.affix} · gema +${g.level}` })
+    // a gema custa diferente em cada formato — o preço que vale é o do socket
+    const gm = gemForShape(g.affix, shape) || gemFor(g.affix)
+    out.push({
+      kind: 'gem',
+      shape,
+      cat: g.cat,
+      name: a ? a.name : g.affix,
+      note: gm ? `${gm.name} · socket ${shapeLabel(shape)}` : shapeLabel(shape),
+      price: gm ? gm.price : null,
+    })
   }
   return out
 })
 
 const verdict = computed(() => (props.piece ? verdictFor(props.piece, plan.value) : null))
 
-/** Preço que se paga de fato: peça crua + prêmio do preset que ela carrega. */
-const price = computed(() => {
+/** Por que ESTA listagem: fica no title do card (sem custar altura na grade). */
+const why = computed(() => {
   const pc = props.piece
-  if (!pc || pc.mid == null) return null
-  return pc.mid + (pc.premium || 0)
-})
-
-/** Peça "base": comprada pelos stats, sem nenhuma gema alocada nem preset. */
-const isBase = computed(() => !!props.piece && props.piece.gems.length === 0 && !props.piece.preset)
-
-/** Opções do seletor ordenadas pelo ganho LÍQUIDO (gema dispensada − prêmio). */
-const presetItems = computed(() => {
-  const opts = state.picks.map((p) => {
-    const g = gemFor(p.id)
-    const premium = presetPremiumFor(props.slotDef.id, p.id, state.premium)
-    const net = g && premium != null ? g.price - premium : null
-    const name = affix(p.id).name
-    let title = `${name} · gema s/ preço`
-    if (g && net == null) title = `${name} · dispensa ${g.price} g, prêmio s/ amostra`
-    else if (net != null) title = net > 0 ? `${name} · poupa ${net} g` : `${name} · custa ${-net} g a mais`
-    return { title, value: p.id, net: net != null ? net : -Infinity }
-  })
-  opts.sort((a, b) => b.net - a.net)
-  return [{ title: 'nenhum', value: '' }, ...opts]
+  if (!pc) return `${props.slotDef.name} — o plano não precisa comprar este slot`
+  if (pc.hypothetical) {
+    return `${pc.base} com preset de ${affix(pc.preset)?.name || pc.preset} — PROCURAR na Auction House (filtro "Affix Effects"). Preço estimado (~${pc.price} g) pela presetada mais barata deste slot.`
+  }
+  return `${pc.base} · ${pc.price} g · x${pc.qty} à venda${verdict.value ? ` — ${verdict.value.text}` : ''}`
 })
 </script>
 
 <template>
   <v-card
-    :variant="piece ? 'outlined' : 'tonal'"
-    :class="['eq-slot pa-3 d-flex flex-column', piece ? '' : 'eq-slot--off']"
+    color="surface-light"
+    :class="['eq-slot px-3 py-2 d-flex flex-column ga-3', piece ? '' : 'eq-slot--off']"
   >
-    <!-- nome do slot + preço -->
-    <div class="d-flex align-start justify-space-between ga-2">
-      <div style="min-width: 0">
-        <div class="text-label-large font-weight-bold text-truncate">{{ label.main }}</div>
-        <div class="text-label-small text-disabled text-truncate">{{ label.sub }}</div>
-      </div>
-      <div class="text-right text-no-wrap">
-        <div class="text-label-large font-weight-bold font-mono" :class="piece ? 'text-primary' : 'text-disabled'">
-          <template v-if="piece">{{ price != null ? `~${price} g` : 's/ preço' }}</template>
-          <template v-else>—</template>
-        </div>
-        <div v-if="piece && showDetails" class="text-label-small text-disabled font-mono">
-          <template v-if="piece.mid == null">sem amostra</template>
-          <template v-else-if="piece.premium">crua {{ piece.mid }} + preset {{ piece.premium }}</template>
-          <template v-else>{{ piece.lo }}–{{ piece.hi }} g</template>
-        </div>
-      </div>
+    <!-- arte + nome da listagem + preço, tudo numa linha -->
+    <div class="d-flex align-center ga-2" :title="why">
+      <v-icon :icon="slotIcon(slotDef.id)" size="22" class="eq-art flex-0-0" />
+      <span class="text-label-large font-weight-bold text-truncate flex-grow-1">
+        {{ piece ? piece.base : slotLabel }}
+      </span>
+      <span
+        class="text-label-small font-weight-bold font-mono text-no-wrap"
+        :class="piece ? 'text-primary' : 'text-disabled'"
+      >
+        <!-- `~` = peça presetada a PROCURAR: o preço é a cotação da presetada
+             mais barata do slot, não uma listagem que já vimos -->
+        {{ piece ? `${piece.hypothetical ? '~' : ''}${piece.price} g` : 'não comprada' }}
+      </span>
     </div>
 
-    <!-- "arte" da peça -->
-    <div class="eq-art">
-      <v-icon :icon="slotIcon(slotDef.id)" size="44" />
-    </div>
+    <!-- Uma linha por slot da peça. As duas origens do affix não podem se
+         parecer: PRESET vem de fábrica na peça (sem socket, sem gema, sem
+         gasto) e GEMA é comprada e encaixada num socket de formato. -->
+    <div
+      v-for="(s, i) in sockets"
+      :key="i"
+      class="d-flex align-center ga-2"
+      :class="s.kind === 'preset' ? 'eq-preset px-2 py-1' : ''"
+    >
+      <v-avatar
+        v-if="s.kind === 'preset'"
+        size="15"
+        rounded="sm"
+        :color="s.useful ? catTheme(s.cat) : 'warning'"
+        variant="flat"
+        class="flex-0-0"
+        :title="s.note"
+      >
+        <v-icon :icon="catIcon(s.cat)" size="10" />
+      </v-avatar>
+      <SocketShape v-else :shape="s.shape" :filled="s.kind === 'gem'" />
 
-    <!-- sockets: preset (cheio) + gemas (tonal) + livres (contorno) -->
-    <div class="d-flex align-center ga-1 flex-wrap">
-      <template v-for="(b, i) in badges" :key="i">
-        <v-avatar
-          v-if="b.kind === 'empty'"
-          size="20"
-          rounded="sm"
-          variant="outlined"
-          class="text-disabled"
-          :title="b.title"
-        >
-          <v-icon icon="$dot" size="6" />
-        </v-avatar>
-        <v-avatar
-          v-else
-          size="20"
-          rounded="sm"
-          :color="b.kind === 'preset' && !b.useful ? 'warning' : catTheme(b.cat)"
-          :variant="b.kind === 'preset' ? 'flat' : 'tonal'"
-          :title="b.title"
-        >
-          <v-icon :icon="catIcon(b.cat)" size="12" />
-        </v-avatar>
-      </template>
+      <span
+        class="text-body-small text-truncate"
+        :class="{
+          'text-disabled': s.kind === 'free',
+          'font-weight-medium': s.kind === 'gem',
+          'font-weight-bold': s.kind === 'preset',
+        }"
+        :title="s.note"
+      >
+        {{ s.name }}
+      </span>
 
       <v-spacer />
 
-      <v-chip v-if="!piece" size="x-small" variant="text" class="text-disabled px-0">não comprada</v-chip>
-      <v-chip v-else-if="isBase" size="x-small" variant="text" class="text-disabled px-0">base</v-chip>
+      <!-- à direita, o que a linha CUSTA. O preset não mostra nada: ele já vem
+           na peça, e quem o diferencia é o realce da linha (ver .eq-preset). -->
+      <span
+        v-if="s.kind === 'gem'"
+        class="text-label-small font-mono text-no-wrap"
+        :class="s.price != null ? 'text-primary' : 'text-disabled'"
+      >
+        {{ s.price != null ? `${s.price} g` : 's/ preço' }}
+      </span>
     </div>
 
-    <!-- veredito curto: compensa comprar esta peça presetada? -->
-    <v-chip v-if="verdict" size="x-small" :color="verdict.color" variant="tonal" class="mt-2 align-self-start">
-      {{ verdict.label }}
-    </v-chip>
-
-    <!-- raio-x (botão "Detalhes"): escolha do preset + porquê do veredito -->
-    <div v-show="showDetails && piece" class="mt-2 pt-2 border-t border-dashed">
-      <div class="d-flex align-center ga-2">
-        <span class="text-label-small text-uppercase text-disabled">preset</span>
-        <v-select
-          :model-value="(piece && piece.preset) || ''"
-          :items="presetItems"
-          class="flex-grow-1"
-          @update:model-value="(v) => setPreset(slotDef.id, v)"
-        />
-      </div>
-      <div v-if="verdict" class="text-body-small text-medium-emphasis mt-2">{{ verdict.text }}</div>
-    </div>
+    <!-- O veredito (quanto o preset poupou, até quanto pagar) não fica na
+         grade: ele vive no title do card e, em detalhe, na aba Compras. A
+         célula mostra só o que a peça É. -->
   </v-card>
 </template>

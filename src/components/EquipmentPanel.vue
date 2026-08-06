@@ -12,39 +12,25 @@ const { state, plan } = useBuild()
 const bought = computed(() => Object.fromEntries(plan.value.boughtPieces.map((pc) => [pc.id, pc])))
 
 /** Se algo não tem preço, o total é um piso (≥), não uma estimativa (~). */
-const anyUnknown = computed(() => plan.value.unpricedUsed || plan.value.gemUnknown)
+const anyUnknown = computed(() => plan.value.gemUnknown)
+
+/** Gemas realmente encaixadas — pode ser menos que a demanda, quando o formato
+    do socket não permite (o plano não força gema em socket incompatível). */
+const gemsPlaced = computed(() => plan.value.boughtPieces.reduce((s, c) => s + c.gems.length, 0))
 </script>
 
 <template>
-  <v-card class="pa-4 pa-sm-5">
+  <v-card class="pa-3">
     <!-- ===== valor do equipamento ===== -->
-    <div class="d-flex align-start justify-space-between flex-wrap ga-3 mb-4">
+    <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-3">
       <div>
-        <div class="text-label-small text-uppercase text-medium-emphasis">Valor do equipamento</div>
         <div class="d-flex align-center ga-2">
           <v-icon icon="$gold" size="24" color="primary" />
           <span class="text-headline-small font-weight-bold font-mono">
             {{ (anyUnknown ? '≥' : '') + plan.grandTotal }}
           </span>
         </div>
-        <div class="text-body-small text-medium-emphasis">
-          {{ plan.boughtPieces.length }} peça(s) {{ plan.baseCost }}
-          <span v-if="plan.premiumCost">+ prêmio de preset {{ plan.premiumCost }}</span>
-          + {{ plan.gemCount }} gema(s) {{ plan.gemsCost }}
-          <span
-            v-if="plan.presetSavings"
-            class="font-weight-medium"
-            :class="plan.presetSavings > 0 ? 'text-success' : 'text-error'"
-          >
-            · presets {{ plan.presetSavings > 0 ? 'poupam' : 'custam' }} {{ Math.abs(plan.presetSavings) }} g
-          </span>
-        </div>
       </div>
-
-      <v-btn-toggle v-model="state.mode" mandatory divided rounded="pill" density="compact">
-        <v-btn value="full" size="small">Completa · 8</v-btn>
-        <v-btn value="min" size="small">Só affixes</v-btn>
-      </v-btn-toggle>
     </div>
 
     <!-- ===== grade de equipamento ===== -->
@@ -56,13 +42,6 @@ const anyUnknown = computed(() => plan.value.unpricedUsed || plan.value.gemUnkno
         :piece="bought[sl.id] || null"
         :style="{ gridArea: sl.id }"
       />
-    </div>
-
-    <div class="text-body-small text-disabled mt-3">
-      Cada selinho no rodapé da peça é um slot: <strong class="text-medium-emphasis">cheio</strong> = affix de fábrica
-      (preset), <strong class="text-medium-emphasis">tonal</strong> = socket com gema,
-      <strong class="text-medium-emphasis">vazio</strong> = socket livre.
-      {{ plan.D }}/{{ plan.totalSocketsAll }} sockets de gema em uso.
     </div>
   </v-card>
 </template>

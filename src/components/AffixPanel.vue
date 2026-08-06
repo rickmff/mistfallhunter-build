@@ -6,8 +6,10 @@ import { useBuild } from '../composables/useBuild.js'
 
 /* Aba "Affixes" — um lugar só para escolher o affix, mirar o nível e ver o que
    o plano já entrega. A barra de pips é o próprio controle: clicar no pip N
-   define o alvo em N (era o antigo number-input + barra de cobertura). */
-const { state, catFilter, plan, addAffix, removeAffix, setLevel } = useBuild()
+   define o alvo em N (era o antigo number-input + barra de cobertura).
+   A ORDEM da lista é a prioridade de alocação, e ela se arrasta: quando não dá
+   pra atender tudo, quem está em cima é servido primeiro. */
+const { state, catFilter, plan, addAffix, removeAffix, setLevel, movePick } = useBuild()
 
 const PIPS = GAME.maxTarget
 
@@ -39,6 +41,40 @@ const add = () => addAffix(selected.value)
 /** `results` sai do solver na MESMA ordem de `picks` — dá pra parear por índice. */
 const rows = computed(() => plan.value.results.map((r, i) => ({ ...r, pick: state.picks[i] })))
 
+/* ---------- arrastar para repriorizar ----------
+   HTML5 drag & drop puro: a lista é curta (no máximo 5 affixes ativos) e não
+   vale uma dependência. Soltar sobre a linha j move o arrastado para lá. */
+const dragFrom = ref(-1)
+const dragOver = ref(-1)
+
+function onDragStart(i, e) {
+  dragFrom.value = i
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(i)) // Firefox exige algum dado
+  }
+}
+
+function onDrop(i) {
+  if (dragFrom.value >= 0) movePick(dragFrom.value, i)
+  dragFrom.value = -1
+  dragOver.value = -1
+}
+
+function onDragEnd() {
+  dragFrom.value = -1
+  dragOver.value = -1
+}
+
+/* Por que este affix não fechou o alvo — a resposta muda a ação do jogador. */
+const REASON = {
+  capacity: 'sem socket livre',
+  shape: 'sem socket do formato certo',
+  unknown: 'socket de formato não amostrado',
+}
+
+const shortReason = (r) => (r.short > 0 ? REASON[r.blockedBy] || 'sem socket livre' : null)
+
 /* Pips: sólidos = ranks vindos de gema, esmaecidos = de graça (preset/wine),
    avermelhados = o que falta pro alvo, apagados = acima do alvo. */
 function pipClass(r, i) {
@@ -50,15 +86,18 @@ function pipClass(r, i) {
   return cls
 }
 
-const sourceLine = (r) =>
-  [
-    `#${r.priority}`,
-    `${r.socketsUsed} gema(s) +${r.gemLevels}`,
-    r.presetPts ? `preset +${r.presetPts}` : null,
-    r.wineBonus ? `wine +${r.wineBonus}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+/** O pip também explica de onde vem aquele rank — some a dúvida do brilho. */
+function pipTitle(r, i) {
+  const origem =
+    i <= r.gemLevels
+      ? 'rank pago em gema'
+      : i <= r.achieved
+        ? 'rank de graça (preset de fábrica ou Victory Wine)'
+        : i <= r.target
+          ? 'falta este rank'
+          : 'acima do alvo'
+  return `nível ${i} — ${origem} · clique para mirar aqui`
+}
 </script>
 
 <template>
@@ -76,17 +115,36 @@ const sourceLine = (r) =>
       Escolha os affixes que você quer — o app calcula as peças <strong>mais baratas</strong> para montá-los.
     </div>
 
-    <div v-else class="mb-4">
-      <div v-for="r in rows" :key="r.id" class="affix-row d-flex align-center ga-3 py-2">
-        <v-avatar :color="catTheme(r.cat)" variant="tonal" rounded="md" size="34">
-          <v-icon :icon="catIcon(r.cat)" size="18" />
+    <div v-else class="mb-3">
+      <div
+        v-for="(r, i) in rows"
+        :key="r.id"
+        class="affix-row d-flex align-center ga-2 py-1"
+        :class="{ 'affix-row--dragging': dragFrom === i, 'affix-row--over': dragOver === i && dragFrom !== i }"
+        draggable="true"
+        @dragstart="onDragStart(i, $event)"
+        @dragover.prevent="dragOver = i"
+        @dragenter.prevent
+        @drop.prevent="onDrop(i)"
+        @dragend="onDragEnd"
+      >
+        <!-- pegador: a ordem é a prioridade, então ela se arrasta -->
+        <div class="drag-handle d-flex align-center ga-1 flex-0-0" :title="`prioridade ${i + 1} — arraste para mudar`">
+          <v-icon icon="$drag" size="14" class="text-disabled" />
+          <span class="text-label-small font-mono text-disabled">{{ i + 1 }}</span>
+        </div>
+
+        <v-avatar :color="catTheme(r.cat)" variant="tonal" rounded="md" size="26">
+          <v-icon :icon="catIcon(r.cat)" size="15" />
         </v-avatar>
 
         <div class="flex-grow-1" style="min-width: 0">
           <div class="d-flex align-center ga-1">
             <span class="text-label-large font-weight-bold text-truncate">{{ r.name }}</span>
             <v-chip v-if="r.reached" size="x-small" color="primary" variant="flat">threshold</v-chip>
-            <v-chip v-if="r.short > 0" size="x-small" color="error" variant="tonal">falta {{ r.short }}</v-chip>
+            <v-chip v-if="r.short > 0" size="x-small" color="error" variant="tonal" :title="shortReason(r)">
+              falta {{ r.short }} · {{ shortReason(r) }}
+            </v-chip>
             <v-spacer />
             <v-btn
               icon="$remove"
@@ -99,23 +157,22 @@ const sourceLine = (r) =>
           </div>
 
           <!-- a barra É o controle: clicar no pip N mira o nível N -->
-          <div class="pips d-flex ga-1 my-1" :class="`text-${catTheme(r.cat)}`">
+          <div class="pips d-flex ga-1" :class="`text-${catTheme(r.cat)}`">
             <button
               v-for="i in PIPS"
               :key="i"
               type="button"
               class="pip"
               :class="pipClass(r, i)"
-              :title="`mirar nível ${i}`"
+              :title="pipTitle(r, i)"
               @click="setLevel(r.pick, i)"
             />
           </div>
 
-          <div class="text-body-small text-disabled">{{ sourceLine(r) }}</div>
         </div>
 
         <div class="text-right text-no-wrap">
-          <div class="text-title-medium font-weight-bold font-mono">Lv.{{ r.achieved }}</div>
+          <div class="text-label-large font-weight-bold font-mono">Lv.{{ r.achieved }}</div>
           <div class="text-label-small text-disabled">alvo {{ r.target }}</div>
         </div>
       </div>
@@ -132,10 +189,6 @@ const sourceLine = (r) =>
     <div class="d-flex ga-2">
       <v-select v-model="selected" :items="affixItems" :disabled="!affixItems.length" class="flex-grow-1" />
       <v-btn color="primary" variant="flat" :disabled="!affixItems.length" icon="$add" size="small" @click="add" />
-    </div>
-
-    <div class="text-body-small text-disabled mt-2">
-      A ordem = prioridade na alocação: se faltar socket, quem fica sem é o último da lista.
     </div>
   </div>
 </template>

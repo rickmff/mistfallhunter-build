@@ -1,4 +1,5 @@
 import { GAME, CAT } from '../data/game.js'
+import { gemsByAffix } from '../data/gems.js'
 
 /* Helpers de leitura da base de dados — puros, sem estado. */
 
@@ -6,23 +7,15 @@ export const byId = (list, id) => list.find((x) => x.id === id)
 
 export const affix = (id) => byId(GAME.affixes, id)
 
-/** Gema mais barata do affix (ou null se ainda não mapeada). */
-export const gemFor = (id) => GAME.gemPrices[id] || null
+/* Um affix tem uma gema POR FORMATO de socket, com preços bem diferentes
+   (ver data/gems.js — catálogo lido da Auction House). */
 
-/* Prêmio de preset: quanto a mais custa a versão presetada da peça.
-   Primeiro que existir vence — amostra por affix, amostra por slot, e só então
-   o palpite global (`override` = valor digitado na UI, senão GAME.default).
-   Devolve null quando não há palpite nenhum: "prêmio desconhecido", que a UI
-   traduz em teto de break-even em vez de economia cravada. */
-export function presetPremiumFor(slotId, affixId, override) {
-  const P = GAME.presetPremium || {}
-  const byAffix = (P.byAffix || {})[affixId]
-  if (byAffix != null) return byAffix
-  const bySlot = (P.bySlot || {})[slotId]
-  if (bySlot != null) return bySlot
-  if (override != null) return override
-  return P.default != null ? P.default : null
-}
+/** Gema mais barata do affix, qualquer formato (null se ainda não mapeada). */
+export const gemFor = (id) => (gemsByAffix[id] || [])[0] || null
+
+/** Gema do affix que entra num socket deste formato (null se não existe). */
+export const gemForShape = (id, shape) => (gemsByAffix[id] || []).find((g) => g.shape === shape) || null
+
 
 export const wineTier = (id) => byId(GAME.wineTiers, id) || GAME.wineTiers[0]
 
@@ -49,12 +42,6 @@ const SLOT_ICONS = {
 export const slotIcon = (id) => SLOT_ICONS[id] || '$slotChest'
 
 export const totalSockets = () => GAME.slots.reduce((s, sl) => s + sl.sockets, 0)
-
-/** Banda de valueOfGold para um preço em gold. */
-export const valueBandFor = (gold) =>
-  GAME.valueBands.find((b) => gold <= b.max) || GAME.valueBands[GAME.valueBands.length - 1]
-
-export const bandColor = (vog) => (GAME.valueBands.find((b) => b.vog === vog) || {}).color || '#888'
 
 /** Nível-alvo sempre em 1..GAME.maxTarget. */
 export const clampTarget = (v) => Math.min(GAME.maxTarget, Math.max(1, parseInt(v, 10) || 1))

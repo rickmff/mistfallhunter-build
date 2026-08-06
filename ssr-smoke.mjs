@@ -4,11 +4,16 @@
 import { createServer } from 'vite'
 import { renderToString } from 'vue/server-renderer'
 
-/* `expect` = trechos que TÊM de sair no HTML — garante que o veredito de preset
-   chegou na tela, não só que o componente não estourou. */
+/* `expect` = trechos que TÊM de sair no HTML — garante que a leitura do plano
+   chegou na tela, não só que o componente não estourou.
+
+   Presets NÃO são mais input: o solver escolhe as listagens do catálogo real.
+   Enquanto os ícones de preset do print não forem identificados, todas as
+   listagens presetadas estão como '?' e nenhuma entra num plano — daí os
+   casos abaixo esperarem peças cruas e o aviso de catálogo incompleto. */
 const CASES = {
   vazio: { seed: { picks: [] }, expect: ['Escolha os affixes'] },
-  'presets úteis': {
+  'plano completo': {
     seed: {
       picks: [
         { id: 'elusive', lvl: 5 },
@@ -17,32 +22,28 @@ const CASES = {
       ],
       wine: { tier: 'r4', a1: 'eloquence', a2: 'elusive' },
       mode: 'full',
-      presets: { boots: 'elusive', gloves: 'eloquence', amulet: 'skypiercer' },
     },
-    // 147 (Agile Peridot) + 138 (Persuasive Peridot) + 45 (Skyshatter) = 330
-    expect: ['compensa · −147 g', 'compensa · −138 g', 'presets poupam 330 g'],
-  },
-  // no modo "mínimo" a peça de preset inútil simplesmente não é comprada;
-  // é no modo completo (8 slots obrigatórios) que o socket queimado aparece.
-  'preset inútil': {
-    seed: {
-      picks: [
-        { id: 'elusive', lvl: 4 }, // fechado pela wine → preset nele é redundante
-        { id: 'skypiercer', lvl: 3 },
-      ],
-      wine: { tier: 'r4', a1: 'elusive', a2: '' },
-      mode: 'full',
-      presets: { boots: 'elusive', gloves: 'wealth' }, // covered + fora da build
-    },
-    expect: ['não compensa · socket perdido', '2 preset(s) sem efeito'],
+    // O plano agora usa PRESET HIPOTÉTICO: a AH tem centenas de listagens por
+    // slot, então para cada affix da build entra uma peça presetada ao preço da
+    // presetada mais barata daquele slot, e a tela manda procurá-la.
+    // 4 peças a procurar, não 5: o plano não conta com mais de
+    // GAME.maxPresetPerAffix peças do mesmo preset (achar 5 iguais é fantasia).
+    expect: ['Procure 4 peça(s) presetada(s)', 'Affix Effects', '1474'],
   },
   'wine cobre tudo': {
     seed: { picks: [{ id: 'elusive', lvl: 4 }], wine: { tier: 'r4', a1: 'elusive', a2: '' }, mode: 'full' },
     expect: ['Nada em aberto'],
   },
-  'gema s/ preço': {
-    seed: { picks: [{ id: 'valor', lvl: 3 }], mode: 'min', presets: { boots: 'valor' } },
-    expect: ['compensa · poupa 1 gema', 'valor s/ preço'],
+  // (Não há mais caso de "gema s/ preço": desde o catálogo do MistfallDB os 32
+  // affixes têm gema mapeada. O caminho continua no código para quando um patch
+  // trouxer affix novo, mas não há fixture que o exercite.)
+  // Preset ganha da gema: Sky Piercer 3 saía por 599 g (3 peças cruas + 3
+  // Skyshatter) e agora sai por 355 g — 2 peças presetadas a ~155 g, com uma
+  // gema só. É o caso que prova que o plano prefere peça de fábrica quando ela
+  // baixa o total.
+  'mínimo compra o mais barato': {
+    seed: { picks: [{ id: 'skypiercer', lvl: 3 }], mode: 'min' },
+    expect: ['~155 g', 'Procure 2 peça(s)', '355'],
   },
   inviável: {
     seed: {
@@ -74,7 +75,7 @@ try {
   const { makeApp } = await server.ssrLoadModule('/ssr-smoke-entry.js')
   for (const [name, { seed, expect }] of Object.entries(CASES)) {
     try {
-      const base = { cls: 'mercenary', wine: { tier: 'none', a1: '', a2: '' }, mode: 'full', presets: {} }
+      const base = { cls: 'mercenary', wine: { tier: 'none', a1: '', a2: '' }, mode: 'full' }
       const html = decodeEntities(await renderToString(makeApp({ ...base, ...seed })))
       const missing = expect.filter((s) => !html.includes(s))
       if (missing.length) throw new Error(`não renderizou: ${missing.join(' | ')}`)

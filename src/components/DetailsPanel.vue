@@ -1,13 +1,11 @@
 <script setup>
 import { computed } from 'vue'
-import { GAME } from '../data/game.js'
 import { useBuild } from '../composables/useBuild.js'
 import GemShop from './GemShop.vue'
 import PresetAdvisor from './PresetAdvisor.vue'
 
-/* Bloco do botão "Detalhes": a análise que não cabe na peça — onde caçar
-   preset e quais gemas comprar. O veredito de cada peça aparece na própria
-   célula da grade quando este bloco abre. */
+/* Aba "Compras": a análise que não cabe na célula da peça — de onde vem a
+   economia dos presets e a lista de gemas a comprar. */
 const { plan } = useBuild()
 
 const gemLabel = computed(() =>
@@ -18,22 +16,14 @@ const gemLabel = computed(() =>
 </script>
 
 <template>
-  <v-card class="pa-4 pa-sm-5">
-    <h2 class="text-title-small font-weight-bold">Raio-x do plano</h2>
-    <p class="text-body-small text-medium-emphasis mb-4">
-      Custo total = <strong class="text-high-emphasis">peças + gemas</strong>. Cada gema dá
-      <strong class="text-high-emphasis">+{{ GAME.maxGemLevel }}</strong> no affix, então nível
-      {{ GAME.thresholdLevel }} = {{ GAME.thresholdLevel }} gemas. Cada peça da grade ao lado abriu com o seletor de
-      preset e o veredito de compra. Preços da Auction House.
-    </p>
-
+  <div>
     <PresetAdvisor />
 
     <template v-if="plan.gemCount">
-      <div class="text-label-small text-uppercase text-medium-emphasis mt-5 mb-2">
+      <div class="text-label-small text-uppercase text-medium-emphasis mt-4 mb-2">
         <v-icon icon="$gem" size="14" start />{{ gemLabel }}
       </div>
       <GemShop />
     </template>
-  </v-card>
+  </div>
 </template>

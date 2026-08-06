@@ -1,30 +1,23 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { GAME } from '../data/game.js'
 import { affix, byId, clampTarget, wineTier } from '../utils/game.js'
-import { optimalPresets, solve } from '../utils/solver.js'
+import { solve } from '../utils/solver.js'
 import { useToast } from './useToast.js'
 
 /* =========================================================================
    STATE — singleton de módulo (a app é uma tela só, não precisa de Pinia).
    `picks` preserva a ORDEM = prioridade de alocação.
    ========================================================================= */
+/* Só entra aqui o que o JOGADOR decide. Quais peças comprar e quais presets
+   caçar NÃO são input: são a resposta do solver sobre o catálogo real da AH. */
 const state = reactive({
   cls: GAME.classes[0].id,
-  picks: [], // [{ id, lvl }]
+  picks: [], // [{ id, lvl }] — a ordem é a prioridade de alocação
   wine: { tier: 'none', a1: '', a2: '' },
   mode: 'full', // "full" = build completa (8 slots) | "min" = só cobrir affixes
-  presets: {}, // { slotId: affixId } — affix já presetado naquela peça
-  // Prêmio de preset em gold: quanto a mais custa a peça por vir presetada.
-  // null = usa GAME.presetPremium.default. É a premissa que decide se preset
-  // compensa, então fica editável e vai no link da build.
-  premium: null,
 })
 
 const catFilter = ref('all') // filtro do dropdown de adição
-
-/* UI (fora do state persistido): o botão "Detalhes" do painel direito abre de
-   uma vez o raio-x do plano — preset/veredito em cada peça + análise embaixo. */
-const showDetails = ref(false)
 
 /** O plano recalcula sozinho a cada mudança de state — era o antigo renderResult(). */
 const plan = computed(() => solve(state))
@@ -38,8 +31,6 @@ function encodeState() {
     p: state.picks.map((p) => [p.id, p.lvl]),
     w: [state.wine.tier, state.wine.a1, state.wine.a2],
     m: state.mode,
-    pr: { ...state.presets },
-    pp: state.premium,
   }
   return btoa(unescape(encodeURIComponent(JSON.stringify(compact))))
 }
@@ -63,14 +54,8 @@ function loadFromHash() {
       state.wine.a2 = state.picks.some((p) => p.id === a2) ? a2 : ''
     }
     if (o.m === 'full' || o.m === 'min') state.mode = o.m
-    if (o.pr && typeof o.pr === 'object') {
-      state.presets = {}
-      for (const [slot, aff] of Object.entries(o.pr)) {
-        if (byId(GAME.slots, slot) && affix(aff)) state.presets[slot] = aff
-      }
-    }
-    // links antigos não têm `pp` → segue no default da base
-    state.premium = Number.isFinite(o.pp) && o.pp >= 0 ? o.pp : null
+    // `pr`/`pp` de links antigos (presets manuais, prêmio) são ignorados de
+    // propósito: presets deixaram de ser input — o solver os escolhe.
   } catch (_) {
     /* hash inválido: ignora */
   }
@@ -113,36 +98,22 @@ function setLevel(pick, value) {
   pick.lvl = clampTarget(value)
 }
 
-function setPreset(slotId, affixId) {
-  if (affixId) state.presets[slotId] = affixId
-  else delete state.presets[slotId]
+/** Reordena a prioridade: a ORDEM de `picks` é a ordem de alocação das gemas,
+    então arrastar uma linha para cima é dizer "atenda este primeiro". */
+function movePick(from, to) {
+  const n = state.picks.length
+  if (from === to || from < 0 || to < 0 || from >= n || to >= n) return
+  const list = state.picks.slice()
+  const [moved] = list.splice(from, 1)
+  list.splice(to, 0, moved)
+  state.picks = list
 }
-
-/** Preenche os presets com a combinação que mais poupa gold (gemas caras primeiro). */
-function applyOptimalPresets() {
-  state.presets = optimalPresets(state)
-}
-
-function clearPresets() {
-  state.presets = {}
-}
-
-/** Prêmio de preset (gold). Vazio/inválido volta pro default da base. */
-function setPremium(v) {
-  const n = parseInt(v, 10)
-  state.premium = Number.isFinite(n) && n >= 0 ? n : null
-}
-
-/** Plano que sairia se cada peça viesse com o preset ideal — base da comparação. */
-const optimalPlan = computed(() => solve({ ...state, presets: optimalPresets(state) }))
 
 function reset() {
   state.cls = GAME.classes[0].id
   state.picks = []
   state.wine = { tier: 'none', a1: '', a2: '' }
   state.mode = 'full'
-  state.presets = {}
-  state.premium = null
   catFilter.value = 'all'
 }
 
@@ -179,17 +150,12 @@ export function useBuild() {
   return {
     state,
     catFilter,
-    showDetails,
     plan,
-    optimalPlan,
     startHashSync,
     addAffix,
     removeAffix,
     setLevel,
-    setPreset,
-    applyOptimalPresets,
-    clearPresets,
-    setPremium,
+    movePick,
     reset,
     share,
   }
