@@ -1,18 +1,24 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { shapeDef, shapeLabel } from '../utils/shapes.js'
+import { shapeDef, shapeLabel } from '@/utils/shapes'
 
-/* Ícone do FORMATO do socket (ver utils/shapes.js).
-   Cheio = socket ocupado por uma gema; vazado = socket livre. */
-const props = defineProps({
-  shape: { type: String, default: null }, // bar | tri | sq | circ | null
-  filled: { type: Boolean, default: false },
-  size: { type: [Number, String], default: 15 },
+interface Props {
+  shape?: string | null
+  filled?: boolean
+  size?: number | string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  shape: null,
+  filled: false,
+  size: 15,
 })
 
 const def = computed(() => shapeDef(props.shape))
 const label = computed(() =>
-  def.value ? `socket ${shapeLabel(props.shape)}` : 'formato do socket ainda não amostrado nesta listagem',
+  def.value
+    ? `socket ${shapeLabel(props.shape)}`
+    : 'formato do socket ainda não amostrado nesta listagem',
 )
 </script>
 
@@ -34,8 +40,6 @@ const label = computed(() =>
       stroke-width="1.4"
       :opacity="filled ? 1 : 0.7"
     />
-    <!-- formato ainda não amostrado: caixa tracejada com "?", pra não passar
-         por um formato de verdade -->
     <template v-else>
       <rect
         x="2.2"

@@ -1,29 +1,6 @@
-/* =========================================================================
-   CATÁLOGO DE GEMAS — Auction House › Affix Gem, Gem Tier I (ago/2026).
-   Lido dos 4 prints da AH: nome, material, preço da listagem mais barata e
-   quantidade à venda. A lista da AH sai ordenada por preço crescente.
+import type { GemDef, GemMaterial, ShapeId } from '@/types'
 
-   O MATERIAL É O FORMATO. O filtro "Gem Type" tem exatamente 4 ícones e cada
-   material desenha um deles — é por isso que socket tem formato:
-
-       Agate / Onyx  →  retângulo vermelho   (bar)
-       Amethyst      →  triângulo roxo       (tri)
-       Moonstone     →  quadrado ciano       (sq)
-       Peridot       →  octógono verde       (hex)
-
-   UM AFFIX TEM VÁRIAS GEMAS — uma por formato, com preços bem diferentes
-   (Warspirit Amethyst 55 vs Warspirit Moonstone 151). Então "o preço da gema
-   de X" depende do socket em que ela vai entrar, e é isso que o solver usa.
-
-   O PAR gema → affix veio do banco do MistfallDB (mistfalldb.com/gems), que
-   fecha os casos em que o nome não entrega o affix. Três desses contrariavam o
-   palpite pelo nome e teriam entrado errado — os três foram CONFERIDOS NO JOGO:
-     Fervor Amethyst/Onyx → FERVID (não Fervor)   Warspirit → FERVOR
-     Lightfoot Moonstone  → ETHEREAL              Impenetrable → SEAMLESS
-   Com isso os 32 affixes têm gema e nenhum custo de build fica em aberto.
-   ========================================================================= */
-export const GEMS = [
-  // ---- retângulo vermelho (Agate / Onyx) ----
+export const GEMS: GemDef[] = [
   { name: 'Steel Bulwark Agate', mat: 'Agate', shape: 'bar', price: 45, qty: 330, affix: 'bulwark' },
   { name: 'Iron Helm Agate', mat: 'Agate', shape: 'bar', price: 45, qty: 363, affix: 'ironhelmet' },
   { name: 'Skyshatter Onyx', mat: 'Onyx', shape: 'bar', price: 45, qty: 416, affix: 'skypiercer' },
@@ -37,7 +14,6 @@ export const GEMS = [
   { name: 'Warding Agate', mat: 'Agate', shape: 'bar', price: 149, qty: 332, affix: 'aegis' },
   { name: 'Resolve Onyx', mat: 'Onyx', shape: 'bar', price: 155, qty: 299, affix: 'valor' },
 
-  // ---- triângulo roxo (Amethyst) ----
   { name: 'Skyshatter Amethyst', mat: 'Amethyst', shape: 'tri', price: 45, qty: 398, affix: 'skypiercer' },
   { name: 'Fervor Amethyst', mat: 'Amethyst', shape: 'tri', price: 45, qty: 435, affix: 'fervid' },
   { name: 'Pursuit Amethyst', mat: 'Amethyst', shape: 'tri', price: 45, qty: 384, affix: 'seeker' },
@@ -51,7 +27,6 @@ export const GEMS = [
   { name: 'Vitality Amethyst', mat: 'Amethyst', shape: 'tri', price: 91, qty: 556, affix: 'vitality' },
   { name: 'Resolve Amethyst', mat: 'Amethyst', shape: 'tri', price: 148, qty: 316, affix: 'valor' },
 
-  // ---- quadrado ciano (Moonstone) ----
   { name: 'Spellshield Moonstone', mat: 'Moonstone', shape: 'sq', price: 45, qty: 387, affix: 'spiritshield' },
   { name: 'Artifice Moonstone', mat: 'Moonstone', shape: 'sq', price: 45, qty: 398, affix: 'creation' },
   { name: 'Haste Moonstone', mat: 'Moonstone', shape: 'sq', price: 54, qty: 318, affix: 'swift' },
@@ -65,7 +40,6 @@ export const GEMS = [
   { name: 'Guardian Moonstone', mat: 'Moonstone', shape: 'sq', price: 141, qty: 383, affix: 'aegis' },
   { name: 'Warspirit Moonstone', mat: 'Moonstone', shape: 'sq', price: 151, qty: 446, affix: 'fervor' },
 
-  // ---- octógono verde (Peridot) ----
   { name: 'Crushing Peridot', mat: 'Peridot', shape: 'hex', price: 45, qty: 443, affix: 'smiting' },
   { name: 'Deft Peridot', mat: 'Peridot', shape: 'hex', price: 45, qty: 498, affix: 'deft' },
   { name: 'Blessed Peridot', mat: 'Peridot', shape: 'hex', price: 45, qty: 458, affix: 'blessing' },
@@ -80,8 +54,7 @@ export const GEMS = [
   { name: 'Farstrike Peridot', mat: 'Peridot', shape: 'hex', price: 155, qty: 413, affix: 'ranged' },
 ]
 
-/** Material → formato do socket (o "Gem Type" da AH tem só estes 4). */
-export const MATERIAL_SHAPE = {
+export const MATERIAL_SHAPE: Record<GemMaterial, ShapeId> = {
   Agate: 'bar',
   Onyx: 'bar',
   Amethyst: 'tri',
@@ -89,9 +62,8 @@ export const MATERIAL_SHAPE = {
   Peridot: 'hex',
 }
 
-/** Gemas de um affix, uma por formato — as não identificadas ficam de fora. */
-export const gemsByAffix = (() => {
-  const map = {}
+export const gemsByAffix: Record<string, GemDef[]> = (() => {
+  const map: Record<string, GemDef[]> = {}
   for (const g of GEMS) {
     if (!g.affix) continue
     ;(map[g.affix] || (map[g.affix] = [])).push(g)

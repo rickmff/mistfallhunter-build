@@ -1,19 +1,17 @@
 import 'vuetify/styles'
 
-import { createVuetify } from 'vuetify'
-import { aliases, mdi } from 'vuetify/iconsets/mdi-svg'
 import {
+  mdiBottleWine,
   mdiCartOutline,
   mdiCircle,
-  mdiDragVertical,
   mdiClose,
+  mdiDragVertical,
   mdiHandBackRight,
   mdiHanger,
-  mdiBottleWine,
   mdiHexagonMultipleOutline,
   mdiLightningBolt,
-  mdiMinus,
   mdiLinkVariant,
+  mdiMinus,
   mdiNecklace,
   mdiPlus,
   mdiRacingHelmet,
@@ -25,14 +23,10 @@ import {
   mdiSwordCross,
   mdiTshirtCrew,
 } from '@mdi/js'
+import { createVuetify, type ThemeDefinition, type VuetifyOptions } from 'vuetify'
+import { aliases, mdi } from 'vuetify/iconsets/mdi-svg'
 
-/* =========================================================================
-   TEMA — a paleta do Gyldsmith (neutro + 1 accent dourado) virou tema
-   Vuetify. Cada chave aqui gera as classes utilitárias `bg-`, `text-` e
-   `border-`, então as categorias de affix (offense/defense/utility) também
-   são cores de tema — nada de CSS custom para pintar chip/dot/barra.
-   ========================================================================= */
-const light = {
+const light: ThemeDefinition = {
   dark: false,
   colors: {
     background: '#f6f6f7',
@@ -40,7 +34,7 @@ const light = {
     'surface-light': '#fafafa',
     sunken: '#f4f4f5',
 
-    primary: '#9a6410', // Gyldenblood, refinado
+    primary: '#9a6410',
     'on-primary': '#ffffff',
     secondary: '#b8801f',
 
@@ -55,7 +49,7 @@ const light = {
   },
 }
 
-const dark = {
+const dark: ThemeDefinition = {
   dark: true,
   colors: {
     background: '#0d0d0f',
@@ -78,9 +72,7 @@ const dark = {
   },
 }
 
-export const vuetifyOptions = {
-  // ícones como path SVG (@mdi/js): entra no bundle só o que é usado,
-  // em vez dos ~2 MB da webfont completa. Uso nos templates: icon="$link".
+export const vuetifyOptions: VuetifyOptions = {
   icons: {
     defaultSet: 'mdi',
     sets: { mdi },
@@ -95,14 +87,12 @@ export const vuetifyOptions = {
       gem: mdiHexagonMultipleOutline,
       drag: mdiDragVertical,
       minus: mdiMinus,
-      wine: mdiBottleWine, // Victory Wine — a bebida da Tavern
+      wine: mdiBottleWine,
 
-      // categoria de affix — o mesmo ícone do painel direito e dos sockets
       offense: mdiSword,
       defense: mdiShieldHalfFull,
       utility: mdiLightningBolt,
 
-      // "arte" de cada peça na grade de equipamento (ver utils/game.js#slotIcon)
       slotWeapon: mdiSwordCross,
       slotHelm: mdiRacingHelmet,
       slotChest: mdiTshirtCrew,
@@ -114,12 +104,8 @@ export const vuetifyOptions = {
     },
   },
 
-  // 'system' segue o prefers-color-scheme, como fazia o CSS original.
   theme: { defaultTheme: 'system', themes: { light, dark } },
 
-  // Defaults globais: evitam repetir as mesmas props em cada componente.
-  // Nada de card com borda: a separação vem do fundo — página `background`,
-  // painel `surface`, peça/linha `surface-light`, cada degrau mais claro.
   defaults: {
     VCard: { variant: 'flat', rounded: 'lg' },
     VSheet: { rounded: 'lg' },

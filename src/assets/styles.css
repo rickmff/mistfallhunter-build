@@ -1,42 +1,19 @@
-/* =========================================================================
-   Único CSS custom do projeto: o resto do estilo sai de componentes e
-   utility classes do Vuetify. Aqui ficam só as coisas que o framework
-   não cobre — família de fonte e dois enfeites de 3px.
-   ========================================================================= */
-
 :root {
-  /* Vuetify 4 lê a fonte destas variáveis (default: Roboto). */
   --v-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --v-font-heading: var(--v-font-body);
 }
 
-/* Bordas a 10% — o branco a 12% do tema estoura no fundo escuro e as caixas
-   brigavam com o conteúdo. Vale para card, sheet, divider e as classes
-   `border-*` (todas leem esta variável). */
 .v-application,
 .v-theme--dark,
 .v-theme--light {
   --v-border-opacity: 0.1;
 }
 
-/* Números (gold, níveis, contagens) em monoespaçada tabular. */
 .font-mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
 
-/* Barrinha vertical de categoria à esquerda das linhas. */
-.cat-bar {
-  flex: 0 0 auto;
-  width: 3px;
-  border-radius: 3px;
-  align-self: stretch;
-}
-
-/* =========================================================================
-   GRADE DE EQUIPAMENTO — as 8 peças dispostas como o inventário do jogo:
-   arma ocupando a linha inteira, o resto em pares, botas sozinhas.
-   ========================================================================= */
 .eq-grid {
   display: grid;
   gap: 6px;
@@ -56,19 +33,15 @@
   }
 }
 
-/* "Arte" da peça: o ícone do slot ao lado do nome, discreto. */
 .eq-art {
   opacity: 0.5;
 }
 
-/* Glifo do formato do socket (▭ ◯ ◻ △) dentro do selinho. */
 .socket-shape {
   font-size: 10px;
   line-height: 1;
 }
 
-/* Linha de PRESET — affix que já vem na peça. Fundo próprio para não se
-   confundir com a linha de gema, que é compra e ocupa socket. */
 .eq-preset {
   border-radius: 6px;
   background: rgba(var(--v-theme-primary), 0.09);
@@ -76,15 +49,10 @@
   margin-inline: -4px;
 }
 
-/* Slot que o plano não compra: presente na grade, mas apagado. */
 .eq-slot--off {
   opacity: 0.5;
 }
 
-/* =========================================================================
-   PIPS DE NÍVEL — a barra de rank do affix é também o controle do alvo.
-   A cor vem do `text-<categoria>` no container (currentColor).
-   ========================================================================= */
 .pip {
   position: relative;
   flex: 1 1 0;
@@ -98,8 +66,6 @@
   transition: opacity 0.12s;
 }
 
-/* Os três níveis, como o jogo desenha: equipamento na cor da categoria, bebida
-   em azul por cima, e o que faltou marcado em vermelho. */
 .pip--gear {
   opacity: 1;
 }
@@ -111,9 +77,8 @@
 
 .pip--off {
   opacity: 0.14;
-} /* acima do alvo */
+}
 
-/* Amostra do pip na legenda — mesma cor/opacidade, tamanho fixo. */
 .pip-key {
   display: inline-block;
   width: 14px;
@@ -123,11 +88,6 @@
   flex: 0 0 auto;
 }
 
-/* BEBIDA — rank emprestado, dura só a run. Mantém a COR do affix: o que muda é
-   só o estilo, para o pip da bebida se distinguir sem virar outro assunto.
-   Listras diagonais + contorno = "isto não é seu, some no fim da run".
-   (Depois de `.pip-key` de propósito: o atalho `background` da legenda apagaria
-   a listra se viesse por último.) */
 .pip--wine,
 .pip-key.pip--wine {
   background-color: transparent;
@@ -145,7 +105,6 @@
   outline-offset: 1px;
 }
 
-/* Tick no pip do threshold — o nível que destrava o bônus extra. */
 .pip--thr::after {
   content: '';
   position: absolute;
@@ -157,12 +116,10 @@
   opacity: 0.5;
 }
 
-/* Linhas da lista de affixes, separadas sem virar um card cada. */
 .affix-row + .affix-row {
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-/* Arrastar para repriorizar: a ordem da lista é a ordem de alocação. */
 .drag-handle {
   cursor: grab;
 }
@@ -171,13 +128,10 @@
   opacity: 0.4;
 }
 
-/* Onde a linha vai cair. */
 .affix-row--over {
   box-shadow: inset 0 2px 0 0 rgb(var(--v-theme-primary));
 }
 
-/* Affix que a build não pediu: existe só enquanto a bebida durar. Fica em
-   segundo plano, mas legível — ele ainda pode ter batido um threshold. */
 .affix-row--wine {
   opacity: 0.72;
 }
