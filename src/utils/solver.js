@@ -1,6 +1,6 @@
 import { GAME } from '../data/game.js'
 import { canPreset } from '../data/pools.js'
-import { affix, gemFor, gemForShape, wineTier, clampTarget } from './game.js'
+import { affix, affixThreshold, gemFor, gemForShape, resolveWine, wineOnlyIds, clampTarget } from './game.js'
 import { SHAPES, gemFitsSocket, gemShapes, sanitizeShapes } from './shapes.js'
 import { assignGems } from './assign.js'
 
@@ -39,17 +39,32 @@ export function solve(state) {
   const MGL = Math.max(1, GAME.maxGemLevel)
 
   // --- 1. demanda por affix (depois da Victory Wine) ---
-  const results = state.picks.map((p, idx) => {
+  // Os pontos da bebida saem normalizados de uma vez: o tier é um ORÇAMENTO de
+  // ranks distribuído entre os affixes, não um bônus fixo por slot.
+  const wineBy = resolveWine(state.wine, state.picks)
+
+  /* A bebida pode alimentar um affix que a build NÃO pediu. Ele entra na lista
+     no fim (não disputa gema com ninguém: alvo = o que a própria bebida dá,
+     logo demanda zero de gear) e ainda assim pode bater o threshold sozinho —
+     um affix de threshold 5 fecha com 5 pontos de Gods Brew, sem socket. */
+  const entries = [
+    ...state.picks.map((p) => ({ id: p.id, lvl: p.lvl, wineOnly: false })),
+    ...wineOnlyIds(state.wine, state.picks).map((id) => ({ id, lvl: wineBy[id], wineOnly: true })),
+  ]
+
+  const results = entries.map((p, idx) => {
     const a = affix(p.id)
     const target = clampTarget(p.lvl)
-    const wineBonus = wineBonusFor(state, p.id)
+    const wineBonus = wineBy[p.id] || 0
     const avail = Math.max(0, target - wineBonus) // ranks que a wine não cobre
     return {
       id: p.id,
       name: a ? a.name : p.id,
       cat: a ? a.cat : 'utility',
       priority: idx + 1,
+      wineOnly: p.wineOnly, // está na lista só porque a bebida o alimenta
       target,
+      threshold: affixThreshold(p.id), // null = affix sem efeito secundário
       wineBonus,
       avail,
       demand: avail,
@@ -139,7 +154,9 @@ export function solve(state) {
     r.shapeBlocked = r.blockedBy === 'shape' || r.blockedBy === 'unknown'
     r.achieved = r.gemLevels + r.wineBonus + r.presetPts
     r.short = Math.max(0, r.target - r.achieved)
-    r.reached = r.achieved >= GAME.thresholdLevel
+    // threshold é por affix (7 para a maioria, 5 para um grupo); `null` = o
+    // affix não tem efeito secundário, então não existe threshold a bater.
+    r.reached = r.threshold != null && r.achieved >= r.threshold
   })
 
   // --- 5. custos ---
@@ -276,8 +293,6 @@ export function solve(state) {
     gemCount,
     grandTotal,
     distinctActive,
-    overCap: distinctActive > GAME.maxActiveAffixes,
-    overCapBy: Math.max(0, distinctActive - GAME.maxActiveAffixes),
   }
 }
 
@@ -622,12 +637,7 @@ function simulateAllocation(supply, results, left, memo, key) {
   return res
 }
 
-/** Bônus de rank que a Victory Wine dá a um affix (pode dobrar no mesmo). */
+/** Ranks que a Victory Wine soma num affix — ver resolveWine em utils/game.js. */
 export function wineBonusFor(state, affixId) {
-  const t = wineTier(state.wine.tier)
-  if (!t || t.bonus === 0) return 0
-  let b = 0
-  if (state.wine.a1 === affixId) b += t.bonus
-  if (state.wine.a2 === affixId) b += t.bonus // permite dobrar num único affix, se quiser
-  return b
+  return resolveWine(state.wine, state.picks)[affixId] || 0
 }

@@ -1,13 +1,35 @@
 /* =========================================================================
    GAME — base de dados editável. Toda mudança de patch começa AQUI.
-   Reflete guias da open beta (29/07/2026); valores a confirmar no jogo.
+
+   FONTES (ago/2026, pós-lançamento) e o quanto valem:
+     mistfalldb.com/affixes    dados granulares — thresholds por affix, escala
+                               (+1,5%/nível) e o ladder da bebida (para no 8).
+                               É a fonte mais confiável para número.
+     Game Rant / Power Up      únicos a publicar os brews da Tavern (nomes e
+       Gaming                  quantidades). Concordam nos nomes, divergem nos
+                               números do topo — bem-apoiado, não oficial.
+     mistfallhunters.wiki      mecânica sim, número não: recusa-se a publicar
+                               nomes de tier e magnitudes, alertando contra
+                               "nomes falsos" em circulação.
+     metamist.io               ⚠️ auto-declarado "pre-launch beta data" — foi de
+                               onde vieram premissas hoje desmentidas (threshold
+                               global em 5). Não use sem cruzar.
    ========================================================================= */
 export const GAME = {
   // --- Parâmetros globais ---
-  thresholdLevel: 5, // nível que desbloqueia o bônus extra (objetivo central)
-  maxActiveAffixes: 5, // máximo de affixes distintos ativos ao mesmo tempo
+  // Threshold PADRÃO, usado só para affix que ainda não teve o seu lido.
+  // O valor real é por affix (`affixes[].threshold`): a maioria abre o efeito
+  // secundário no 7, um grupo no 5, e alguns não têm efeito secundário nenhum.
+  thresholdLevel: 5,
+  // (não há teto de affixes distintos numa build — o limite real é socket,
+  // e disso o solver já cuida: cada peça entrega 2 ranks.)
   maxGemLevel: 1, // cada gema/socket entrega +1 no affix (confirmado pós-launch)
-  maxTarget: 9, // nível-alvo máximo selecionável por affix
+  // Nível-alvo máximo selecionável. O ladder do JOGO vai bem além (a MistfallDB
+  // diz que o bônus só capa em +48% no nível 32, com a tabela indo até 40), mas
+  // aqui o alvo útil é outro: o maior threshold é 7 e a build inteira entrega
+  // 16 ranks de gear (8 peças × 2) + no máximo 8 de bebida. 9 cobre qualquer
+  // threshold com folga e mantém a barra de pips legível.
+  maxTarget: 9,
   maxPresetsPerPiece: 1, // uma peça traz no máximo 1 affix de fábrica (ver slots[])
 
   // Quantas peças com o MESMO affix de fábrica o plano pode contar. O preset é
@@ -213,49 +235,58 @@ export const GAME = {
     },
   ],
 
-  // Affixes — LISTA COMPLETA pós-lançamento (32 affixes), conferida em
-  // metamist.io/affixes + mistfallhunters.wiki (ago/2026). cat: offense|defense|utility
-  // (buckets do jogo mapeados: Damage→offense; Survival/Support→defense; Resource/Mobility/Debuff→utility).
-  // Confirme no jogo (camp/socket UI) — pode mudar por patch.
+  // Affixes — os 32 que ROLAM em gear/gema. A MistfallDB define 44, mas diz
+  // "32 of them can [roll], the rest are defined but appear on no gear or gem":
+  // os 12 de fora são 7 stat-lines (Headshot Damage, Physical Damage Reduction,
+  // Reduced Block/Skill Stamina Cost, …) + Powerful, Wise, Lifebane, Siphon e
+  // Spirit Spring. Esta lista é exatamente o conjunto que rola — não adicione os
+  // outros sem confirmar que passaram a rolar. cat: offense|defense|utility.
+  //
+  // `threshold` = nível em que o affix ganha o EFEITO SECUNDÁRIO — o alvo real
+  // de uma build. NÃO é 5 para todo mundo: a maioria só abre no 7, e um grupo
+  // abre no 5 (fonte: mistfalldb.com/affixes, ago/2026, conferido em duas
+  // leituras). `threshold: null` = affix sem efeito secundário, só escala linear
+  // (+1,5%/nível) — nele não existe "bater o threshold", e a tela não marca pip.
+  // GAME.thresholdLevel abaixo é só o padrão para affix novo sem valor lido.
   affixes: [
     // — Ofensivos (Damage) —
-    { id: 'valor', name: 'Valor', cat: 'offense', desc: 'Aumenta ataque; penetração de defesa em nível alto.' },
-    { id: 'ranged', name: 'Ranged', cat: 'offense', desc: 'Mais dano à distância; estende o alcance efetivo.' },
-    { id: 'skypiercer', name: 'Sky Piercer', cat: 'offense', desc: 'Mais dano em skills aéreas; reduz custo de energia.' },
-    { id: 'fervor', name: 'Fervor', cat: 'offense', desc: 'Dano acumulável após acertos; penetração no nível 5+.' },
-    { id: 'strife', name: 'Strife', cat: 'offense', desc: 'Mais dano de arma corpo-a-corpo; stacks por inimigo próximo.' },
-    { id: 'fervid', name: 'Fervid', cat: 'offense', desc: 'Mais dano com vida acima de 70%; reduz custo de energia.' },
-    { id: 'wrath', name: 'Wrath', cat: 'offense', desc: 'Mais dano com vida baixa; ataque no nível 5+.' },
-    { id: 'burst', name: 'Burst', cat: 'offense', desc: 'Aumenta o dano de Wither Execution (Withered Knight).' },
-    { id: 'smiting', name: 'Smiting', cat: 'offense', desc: 'Recupera energia em crítico; reduz cooldowns no nível 4+.' },
+    { id: 'valor', name: 'Valor', cat: 'offense', threshold: 7, desc: 'Aumenta ataque; penetração de defesa no nível 7.' },
+    { id: 'ranged', name: 'Ranged', cat: 'offense', threshold: 7, desc: 'Mais dano à distância; estende o alcance efetivo no nível 7.' },
+    { id: 'skypiercer', name: 'Sky Piercer', cat: 'offense', threshold: 7, desc: 'Mais dano em skills aéreas; reduz custo de energia no nível 7.' },
+    { id: 'fervor', name: 'Fervor', cat: 'offense', threshold: 7, desc: 'Dano acumulável após acertos; penetração de defesa no nível 7.' },
+    { id: 'strife', name: 'Strife', cat: 'offense', threshold: 7, desc: 'Mais dano de arma corpo-a-corpo; stacks por inimigo próximo no nível 7.' },
+    { id: 'fervid', name: 'Fervid', cat: 'offense', threshold: 7, desc: 'Mais dano com vida acima de 70%; reduz custo de energia no nível 7.' },
+    { id: 'wrath', name: 'Wrath', cat: 'offense', threshold: 7, desc: 'Mais dano com vida baixa; ataque no nível 7.' },
+    { id: 'burst', name: 'Burst', cat: 'offense', threshold: null, desc: 'Aumenta o dano de Wither Execution (Withered Knight). Sem efeito secundário.' },
+    { id: 'smiting', name: 'Smiting', cat: 'offense', threshold: 5, desc: 'Recupera energia em crítico; reduz cooldowns no nível 5.' },
 
     // — Defensivos (Survival / Support) —
-    { id: 'aegis', name: 'Aegis', cat: 'defense', desc: 'Aumenta defesa; resistência física em nível alto.' },
-    { id: 'stoic', name: 'Stoic', cat: 'defense', desc: 'Resistências com vida baixa; restaura vida no nível 5+.' },
-    { id: 'tenacious', name: 'Tenacious', cat: 'defense', desc: 'Aumenta vida máxima; bônus de cura depois.' },
-    { id: 'unyielding', name: 'Unyielding', cat: 'defense', desc: 'Resistência por inimigo acertado; empilha até 4x.' },
-    { id: 'resilience', name: 'Resilience', cat: 'defense', desc: 'Reduz duração de debuffs; resistência após CC.' },
-    { id: 'bulwark', name: 'Bulwark', cat: 'defense', desc: 'Mais redução no bloqueio; reduz custo de energia do bloqueio.' },
-    { id: 'ironhelmet', name: 'Iron Helmet', cat: 'defense', desc: 'Resistência a dano crítico; reduz impacto de crits.' },
-    { id: 'distantward', name: 'Distant Ward', cat: 'defense', desc: 'Resistência a acertos à distância; bloqueia impactos menores.' },
-    { id: 'spiritshield', name: 'Spirit Shield', cat: 'defense', desc: 'Aumenta a força do escudo; bônus de resistência mágica.' },
-    { id: 'brotherhood', name: 'Brotherhood', cat: 'defense', desc: 'Concede defesa ao time; ataque no nível 5+.' },
-    { id: 'ethereal', name: 'Ethereal', cat: 'defense', desc: 'Resistência a dano de queda; imunidade a stagger depois.' },
+    { id: 'aegis', name: 'Aegis', cat: 'defense', threshold: 7, desc: 'Aumenta defesa; resistência física no nível 7.' },
+    { id: 'stoic', name: 'Stoic', cat: 'defense', threshold: 7, desc: 'Resistências com vida baixa; restaura vida no nível 7.' },
+    { id: 'tenacious', name: 'Tenacious', cat: 'defense', threshold: 7, desc: 'Aumenta vida máxima; bônus de cura no nível 7.' },
+    { id: 'unyielding', name: 'Unyielding', cat: 'defense', threshold: 7, desc: 'Resistência por inimigo acertado; empilha até 4x no nível 7.' },
+    { id: 'resilience', name: 'Resilience', cat: 'defense', threshold: 5, desc: 'Reduz duração de debuffs de controle; resistências no nível 5.' },
+    { id: 'bulwark', name: 'Bulwark', cat: 'defense', threshold: 5, desc: 'Mais redução no bloqueio; reduz custo de energia do bloqueio no nível 5.' },
+    { id: 'ironhelmet', name: 'Iron Helmet', cat: 'defense', threshold: 5, desc: 'Resistência a dano crítico; reduz impacto de crits no nível 5.' },
+    { id: 'distantward', name: 'Distant Ward', cat: 'defense', threshold: 7, desc: 'Resistência a acertos à distância; bloqueia impactos menores no nível 7.' },
+    { id: 'spiritshield', name: 'Spirit Shield', cat: 'defense', threshold: 7, desc: 'Aumenta a força do escudo; resistência mágica no nível 7.' },
+    { id: 'brotherhood', name: 'Brotherhood', cat: 'defense', threshold: 7, desc: 'Concede defesa ao time; ataque no nível 7.' },
+    { id: 'ethereal', name: 'Ethereal', cat: 'defense', threshold: 5, desc: 'Resistência a dano de queda; imunidade a stagger no nível 5.' },
 
     // — Utilitários (Resource / Mobility / Support / Debuff) —
-    { id: 'eloquence', name: 'Eloquence', cat: 'utility', desc: 'Aumenta velocidade de conjuração; resistência a interrupção depois.' },
-    { id: 'seamless', name: 'Seamless', cat: 'utility', desc: 'Recarga de skills mais rápida; reembolso ao derrubar.' },
+    { id: 'eloquence', name: 'Eloquence', cat: 'utility', threshold: 7, desc: 'Aumenta velocidade de conjuração; resistência a interrupção no nível 7.' },
+    { id: 'seamless', name: 'Seamless', cat: 'utility', threshold: 7, desc: 'Recarga de skills mais rápida; reembolso ao derrubar no nível 7.' },
     // Seeker aparece em ATTACK no menu do jogo, não em Functional (print ago/2026)
-    { id: 'seeker', name: 'Seeker', cat: 'offense', desc: 'Velocidade de movimento ao acertar; empilha depois.' },
-    { id: 'vitality', name: 'Vitality', cat: 'utility', desc: 'Aumenta energia máxima; imunidade a overdraft no nível 4+.' },
-    { id: 'elusive', name: 'Elusive', cat: 'utility', desc: 'Reduz o custo de energia da esquiva a cada nível.' },
-    { id: 'curse', name: 'Curse', cat: 'utility', desc: 'Aumenta a duração dos debuffs que você aplica.' },
-    { id: 'focused', name: 'Focused', cat: 'utility', desc: 'Aumenta a velocidade de carga; bônus de movimento depois.' },
-    { id: 'blessing', name: 'Blessing', cat: 'utility', desc: 'Aumenta a duração dos buffs que você concede.' },
-    { id: 'creation', name: 'Creation', cat: 'utility', desc: 'Aumenta a duração de Constructs; bônus de dano no nível 5+.' },
-    { id: 'wealth', name: 'Wealth', cat: 'utility', desc: 'Aumenta o Gyldenblod obtido de PvE em dungeons.' },
-    { id: 'deft', name: 'Deft', cat: 'utility', desc: 'Velocidade de interação; resistência a interrupção depois.' },
-    { id: 'swift', name: 'Swift', cat: 'utility', desc: 'Mais velocidade agachado, mirando e conjurando.' },
+    { id: 'seeker', name: 'Seeker', cat: 'offense', threshold: 5, desc: 'Velocidade de movimento ao acertar; empilha no nível 5.' },
+    { id: 'vitality', name: 'Vitality', cat: 'utility', threshold: 5, desc: 'Aumenta energia máxima; imunidade a overdraft no nível 5.' },
+    { id: 'elusive', name: 'Elusive', cat: 'utility', threshold: null, desc: 'Reduz o custo de energia da esquiva a cada nível. Sem efeito secundário.' },
+    { id: 'curse', name: 'Curse', cat: 'utility', threshold: null, desc: 'Aumenta a duração dos debuffs que você aplica. Sem efeito secundário.' },
+    { id: 'focused', name: 'Focused', cat: 'utility', threshold: 7, desc: 'Aumenta a velocidade de carga; bônus de movimento no nível 7.' },
+    { id: 'blessing', name: 'Blessing', cat: 'utility', threshold: null, desc: 'Aumenta a duração dos buffs que você concede. Sem efeito secundário.' },
+    { id: 'creation', name: 'Creation', cat: 'utility', threshold: 7, desc: 'Aumenta a duração de Constructs; bônus de dano no nível 7.' },
+    { id: 'wealth', name: 'Wealth', cat: 'utility', threshold: null, desc: 'Aumenta o Gyldenblod obtido de PvE em dungeons. Sem efeito secundário.' },
+    { id: 'deft', name: 'Deft', cat: 'utility', threshold: 5, desc: 'Velocidade de interação; resistência a interrupção no nível 5.' },
+    { id: 'swift', name: 'Swift', cat: 'utility', threshold: null, desc: 'Mais velocidade agachado, mirando e conjurando. Sem efeito secundário.' },
   ],
 
   // Gemas por affix — MENOR preço observado nos prints da Auction House (Affix Gem),
@@ -293,18 +324,45 @@ export const GAME = {
     // sem gema confirmada: valor, aegis, stoic, fervor, ironhelmet, ethereal.
   },
 
-  // Victory Wine — sistema PÓS-LANÇAMENTO (ago/2026): concede exatamente 2 affixes
-  // por run, travados ao confirmar até extrair/morrer. ⚠️ Os nomes de tier e os
-  // valores numéricos NÃO são confirmados publicamente — a wiki alerta contra
-  // "nomes falsos". Aqui o bônus é modelado como "+N ranks" (0–4) só para o solver;
-  // confirme a magnitude real no jogo.
+  // =========================================================================
+  // Victory Wine — a bebida da Tavern, tomada ANTES da run. Os affixes travam
+  // ao confirmar e valem até extrair ou morrer. É uma das três camadas de affix
+  // do lançamento (gear, Victory Wine, Holy Weapon).
+  //
+  // O TIER NÃO É A MAGNITUDE, É A QUANTIDADE. Cada tier dá um número de PONTOS
+  // (= ranks) para distribuir entre os affixes da build; a magnitude por ponto é
+  // a mesma escala do gear (+1,5%/nível). `maxPerAffix` é o teto por affix: os
+  // dois tiers baixos dão 1 ponto por affix, e o "stacking" de War Blood e Gods
+  // Brew vai só até 2 — não é empilhar à vontade.
+  //
+  //   Mortal Tonic   grátis de craftar        2 pontos   até 1 por affix
+  //   Hero's Ale     ingredientes comuns      4 pontos   até 1 por affix
+  //   War Blood      ingredientes raros       5 pontos   até 2 por affix
+  //   Gods Brew      ingredientes épicos      6 pontos   até 2 por affix
+  //
+  // Ou seja: o tier alto serve para ESPALHAR bônus por mais affixes, não para
+  // estourar um só. Gods Brew = 3 affixes com +2, ou 6 affixes com +1.
+  //
+  // ⚠️ PROCEDÊNCIA: os nomes e as quantidades vêm de Game Rant e Power Up Gaming
+  // (ago/2026), que concordam nos nomes e divergem nos números do topo (o PUG dá
+  // faixas: War Blood 5–6, Gods Brew 6–8, e chama a coluna de "Affix Points").
+  // A mistfallhunters.wiki se RECUSA a publicar nomes e números, alertando contra
+  // "nomes falsos" em circulação — então trate como bem-apoiado, não oficial.
+  // Também não é público: em que nível da Tavern cada brew destrava, nem o custo
+  // em ingredientes (`cost` abaixo é a descrição qualitativa das fontes).
   wineTiers: [
-    { id: 'none', name: '— sem Wine —', bonus: 0 },
-    { id: 'r1', name: 'Wine · +1 rank', bonus: 1 },
-    { id: 'r2', name: 'Wine · +2 ranks', bonus: 2 },
-    { id: 'r3', name: 'Wine · +3 ranks', bonus: 3 },
-    { id: 'r4', name: 'Wine · +4 ranks', bonus: 4 },
+    { id: 'none', name: '— sem bebida —', points: 0, maxPerAffix: 0, cost: '' },
+    { id: 'tonic', name: 'Mortal Tonic', points: 2, maxPerAffix: 1, cost: 'grátis de craftar' },
+    { id: 'ale', name: "Hero's Ale", points: 4, maxPerAffix: 1, cost: 'ingredientes comuns' },
+    { id: 'blood', name: 'War Blood', points: 5, maxPerAffix: 2, cost: 'ingredientes raros' },
+    { id: 'brew', name: 'Gods Brew', points: 6, maxPerAffix: 2, cost: 'ingredientes épicos' },
   ],
+
+  // Teto do ladder da bebida: "Wine buffs use the same +1.5% per level, but their
+  // ladder ends at level 8 for +12%" (mistfalldb). Com `maxPerAffix` em 2 este
+  // teto não chega a apertar hoje — fica como limite defensivo, e volta a valer
+  // se algum patch soltar o stacking.
+  wineMaxLevel: 8,
 }
 
 export const CAT = {

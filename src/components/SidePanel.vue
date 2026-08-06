@@ -2,12 +2,11 @@
 import { ref } from 'vue'
 import AffixPanel from './AffixPanel.vue'
 import AttributesPanel from './AttributesPanel.vue'
-import DetailsPanel from './DetailsPanel.vue'
 
-/* Painel direito — as leituras da build em abas, como a ficha do jogo:
-   "Atributos" (classe, wine, custo), "Affixes" (o que se quer e o que se tem)
-   e "Compras" (de onde vem a economia + as gemas a comprar). Em aba, e não
-   num bloco que abre embaixo, tudo cabe na tela sem rolagem. */
+/* Painel direito — a ficha da build em duas abas: "Atributos" (quem é o
+   personagem) e "Affixes" (o que se quer, o que se tem e a Victory Wine).
+   O custo e a lista de compras vivem na grade de equipamento à esquerda, peça
+   a peça, com o preço de cada gema. */
 const tab = ref('affixes')
 </script>
 
@@ -18,7 +17,6 @@ const tab = ref('affixes')
     <v-tabs v-model="tab" grow density="compact">
       <v-tab value="attrs" size="small">Atributos</v-tab>
       <v-tab value="affixes" size="small">Affixes</v-tab>
-      <v-tab value="shop" size="small">Compras</v-tab>
     </v-tabs>
 
     <v-divider />
@@ -27,7 +25,6 @@ const tab = ref('affixes')
     <div class="pa-3">
       <AttributesPanel v-show="tab === 'attrs'" />
       <AffixPanel v-show="tab === 'affixes'" />
-      <DetailsPanel v-show="tab === 'shop'" />
     </div>
   </v-card>
 </template>

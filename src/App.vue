@@ -16,12 +16,6 @@ const banners = computed(() => {
   const S = plan.value
   const out = []
   if (!state.picks.length) return out
-  if (S.overCap) {
-    out.push({
-      type: 'error',
-      text: `${S.distinctActive} affixes ativos — o limite é ${GAME.maxActiveAffixes}. Remova ${S.overCapBy} para uma build legal.`,
-    })
-  }
   if (!S.feasibleSockets) {
     out.push({
       type: 'warning',

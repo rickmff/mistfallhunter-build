@@ -9,15 +9,16 @@ import {
   mdiClose,
   mdiHandBackRight,
   mdiHanger,
+  mdiBottleWine,
   mdiHexagonMultipleOutline,
   mdiLightningBolt,
+  mdiMinus,
   mdiLinkVariant,
   mdiNecklace,
   mdiPlus,
   mdiRacingHelmet,
   mdiRestore,
   mdiRing,
-  mdiSack,
   mdiShieldHalfFull,
   mdiShoeFormal,
   mdiSword,
@@ -92,8 +93,9 @@ export const vuetifyOptions = {
       dot: mdiCircle,
       cart: mdiCartOutline,
       gem: mdiHexagonMultipleOutline,
-      gold: mdiSack,
       drag: mdiDragVertical,
+      minus: mdiMinus,
+      wine: mdiBottleWine, // Victory Wine — a bebida da Tavern
 
       // categoria de affix — o mesmo ícone do painel direito e dos sockets
       offense: mdiSword,

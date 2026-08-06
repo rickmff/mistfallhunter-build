@@ -11,3 +11,9 @@ export function makeApp(seed) {
   Object.assign(state, seed)
   return createSSRApp(App).use(createVuetify({ ...vuetifyOptions, ssr: true }))
 }
+
+/** O gold saiu da tela, mas continua sendo a decisão do solver — o smoke test
+    confere o custo pelo plano, já que não dá mais pra procurá-lo no HTML. */
+export function readPlan() {
+  return useBuild().plan.value
+}

@@ -53,7 +53,7 @@ const sockets = computed(() => {
       continue
     }
     const a = affix(g.affix)
-    // a gema custa diferente em cada formato — o preço que vale é o do socket
+    // a gema varia com o formato do socket — o nome certo é o daquele formato
     const gm = gemForShape(g.affix, shape) || gemFor(g.affix)
     out.push({
       kind: 'gem',
@@ -61,7 +61,6 @@ const sockets = computed(() => {
       cat: g.cat,
       name: a ? a.name : g.affix,
       note: gm ? `${gm.name} · socket ${shapeLabel(shape)}` : shapeLabel(shape),
-      price: gm ? gm.price : null,
     })
   }
   return out
@@ -85,19 +84,11 @@ const why = computed(() => {
     color="surface-light"
     :class="['eq-slot px-3 py-2 d-flex flex-column ga-3', piece ? '' : 'eq-slot--off']"
   >
-    <!-- arte + nome da listagem + preço, tudo numa linha -->
+    <!-- arte + nome da listagem + situação, tudo numa linha -->
     <div class="d-flex align-center ga-2" :title="why">
       <v-icon :icon="slotIcon(slotDef.id)" size="22" class="eq-art flex-0-0" />
       <span class="text-label-large font-weight-bold text-truncate flex-grow-1">
         {{ piece ? piece.base : slotLabel }}
-      </span>
-      <span
-        class="text-label-small font-weight-bold font-mono text-no-wrap"
-        :class="piece ? 'text-primary' : 'text-disabled'"
-      >
-        <!-- `~` = peça presetada a PROCURAR: o preço é a cotação da presetada
-             mais barata do slot, não uma listagem que já vimos -->
-        {{ piece ? `${piece.hypothetical ? '~' : ''}${piece.price} g` : 'não comprada' }}
       </span>
     </div>
 
@@ -124,7 +115,8 @@ const why = computed(() => {
       <SocketShape v-else :shape="s.shape" :filled="s.kind === 'gem'" />
 
       <span
-        class="text-body-small text-truncate"
+        class="text-body-small text-truncate flex-grow-1"
+        style="min-width: 0"
         :class="{
           'text-disabled': s.kind === 'free',
           'font-weight-medium': s.kind === 'gem',
@@ -133,18 +125,6 @@ const why = computed(() => {
         :title="s.note"
       >
         {{ s.name }}
-      </span>
-
-      <v-spacer />
-
-      <!-- à direita, o que a linha CUSTA. O preset não mostra nada: ele já vem
-           na peça, e quem o diferencia é o realce da linha (ver .eq-preset). -->
-      <span
-        v-if="s.kind === 'gem'"
-        class="text-label-small font-mono text-no-wrap"
-        :class="s.price != null ? 'text-primary' : 'text-disabled'"
-      >
-        {{ s.price != null ? `${s.price} g` : 's/ preço' }}
       </span>
     </div>
 

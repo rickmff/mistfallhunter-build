@@ -98,20 +98,47 @@
   transition: opacity 0.12s;
 }
 
-.pip--gem {
+/* Os três níveis, como o jogo desenha: equipamento na cor da categoria, bebida
+   em azul por cima, e o que faltou marcado em vermelho. */
+.pip--gear {
   opacity: 1;
-} /* rank pago com gema */
-.pip--free {
-  opacity: 0.45;
-} /* rank de graça: preset ou wine */
-.pip--off {
-  opacity: 0.14;
-} /* acima do alvo */
+}
 
 .pip--miss {
   background: rgb(var(--v-theme-error));
   opacity: 0.4;
-} /* falta pro alvo */
+}
+
+.pip--off {
+  opacity: 0.14;
+} /* acima do alvo */
+
+/* Amostra do pip na legenda — mesma cor/opacidade, tamanho fixo. */
+.pip-key {
+  display: inline-block;
+  width: 14px;
+  height: 7px;
+  border-radius: 3px;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+/* BEBIDA — rank emprestado, dura só a run. Mantém a COR do affix: o que muda é
+   só o estilo, para o pip da bebida se distinguir sem virar outro assunto.
+   Listras diagonais + contorno = "isto não é seu, some no fim da run".
+   (Depois de `.pip-key` de propósito: o atalho `background` da legenda apagaria
+   a listra se viesse por último.) */
+.pip--wine,
+.pip-key.pip--wine {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    115deg,
+    currentColor 0 2px,
+    rgba(0, 0, 0, 0) 2px 5px
+  );
+  box-shadow: inset 0 0 0 1px currentColor;
+  opacity: 0.9;
+}
 
 .pip:hover {
   outline: 1px solid currentColor;
@@ -147,4 +174,14 @@
 /* Onde a linha vai cair. */
 .affix-row--over {
   box-shadow: inset 0 2px 0 0 rgb(var(--v-theme-primary));
+}
+
+/* Affix que a build não pediu: existe só enquanto a bebida durar. Fica em
+   segundo plano, mas legível — ele ainda pode ter batido um threshold. */
+.affix-row--wine {
+  opacity: 0.72;
+}
+
+.affix-row--wine .drag-handle {
+  cursor: default;
 }

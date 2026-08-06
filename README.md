@@ -53,9 +53,26 @@ O plano é um `computed` sobre o estado: mudou input, recalcula e re-renderiza s
   que viole a regra vira `null` ("formato ?") em vez de virar mentira na tela: `sanitizeShapes()` é
   aplicado ao montar as listagens no solver. O formato ainda **não restringe a alocação** — se o jogo
   amarrar gema a formato, vira restrição na escolha.
+- **Threshold é por affix, não 5 para todos.** O efeito secundário abre no **7** na maioria dos
+  affixes e no **5** num grupo (Bulwark, Deft, Ethereal, Iron Helmet, Resilience, Seeker, Smiting,
+  Vitality); seis não têm efeito secundário nenhum (`threshold: null` — Blessing, Burst, Curse,
+  Elusive, Swift, Wealth) e neles não existe "bater o threshold". Está em `affixes[].threshold`,
+  lido de mistfalldb.com/affixes. Adicionar um affix já mira o threshold *dele*.
+- **Victory Wine: o tier é QUANTIDADE, não magnitude.** Cada brew dá um orçamento de pontos
+  (Mortal Tonic 2 · Hero's Ale 4 · War Blood 5 · Gods Brew 6) e cada ponto vale +1 rank. O teto por
+  affix é **1** nos dois tiers baixos e **2** em War Blood e Gods Brew — o tier alto serve para
+  espalhar bônus por mais affixes, não para estourar um só (Gods Brew = 3 affixes com +2, ou 6 com
+  +1). Nenhum brew cobre sozinho um alvo 3+. Os pontos **não se restringem aos affixes da build**:
+  gastar um ponto num affix qualquer o traz para a lista marcado como *"só bebida"* — ele não
+  custa socket nem gold, e ainda pode bater um threshold sozinho (5 pontos num affix de
+  threshold 5). Clicar num pip dessa linha o promove a pedido de verdade.
+  ⚠️ Nomes e quantidades vêm de Game Rant e Power Up Gaming; a mistfallhunters.wiki se recusa a
+  publicar números. Não é público em que nível da Tavern cada brew destrava nem o custo real.
+- **Não há teto de affixes por build.** O limite é socket, e disso o solver já cuida.
 - **Tema**: segue o `prefers-color-scheme` do sistema (`defaultTheme: 'system'`).
-- **Links de build**: o estado vive no hash da URL em base64. Links antigos continuam abrindo;
-  os campos `pr` (presets manuais) e `pp` (prêmio) que eles carregam são ignorados de propósito,
-  já que presets deixaram de ser input.
+- **Links de build**: o estado vive no hash da URL em base64. Links antigos continuam abrindo:
+  os campos `pr` (presets manuais) e `pp` (prêmio) são ignorados de propósito, e a bebida no
+  formato velho (`[tier, a1, a2]`, em que o tier era "+N ranks") é migrada preservando a
+  intenção — os affixes que bebiam ganham 1 ponto cada, no menor tier que pague a conta.
 - **Ícones**: paths SVG via `@mdi/js`, registrados como aliases (`icon="$link"`), então só o
   que é usado entra no bundle.
